@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 700" width="100%" height="100%">
+  <defs>
+    <linearGradient id="toxicGreen" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#39ff14" />
+      <stop offset="100%" stop-color="#059600" />
+    </linearGradient>
+    <linearGradient id="wastelandOrange" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff6600" />
+      <stop offset="100%" stop-color="#b33600" />
+    </linearGradient>
+  </defs>
+
+  <circle cx="400" cy="360" r="240" fill="none" stroke="#1a1a1a" stroke-width="22" />
+  <circle cx="400" cy="360" r="220" fill="none" stroke="url(#wastelandOrange)" stroke-width="5" />
+  <circle cx="400" cy="360" r="252" fill="none" stroke="#1a1a1a" stroke-width="3" />
+
+  <!-- WASTELAND oben -->
+  <path id="arcTop" d="M 168,360 A 232,232 0 0,1 632,360" fill="none"/>
+  <text font-family="'Impact','Arial Black',sans-serif" font-size="48" font-weight="900" fill="url(#wastelandOrange)" letter-spacing="7">
+    <textPath href="#arcTop" startOffset="50%" text-anchor="middle">WASTELAND</textPath>
+  </text>
+
+  <!-- PANZER unten — y=520 statt 560 -->
+  <path id="arcBottom" d="M 205,510 A 215,215 0 0,0 595,510" fill="none"/>
+  <text font-family="'Impact','Arial Black',sans-serif" font-size="48" font-weight="900" fill="url(#wastelandOrange)" letter-spacing="14">
+    <textPath href="#arcBottom" startOffset="50%" text-anchor="middle">PANZER</textPath>
+  </text>
+
+  <g id="barbell">
+    <rect x="40" y="270" width="720" height="18" fill="#111" stroke="url(#wastelandOrange)" stroke-width="2" />
+    <rect x="110" y="195" width="22" height="165" fill="#1a1a1a" rx="4" />
+    <rect x="85" y="210" width="20" height="135" fill="#222" rx="3" />
+    <rect x="65" y="230" width="16" height="95" fill="#1a1a1a" rx="2" />
+    <rect x="45" y="255" width="16" height="45" fill="#222" />
+    <rect x="132" y="260" width="12" height="35" fill="url(#wastelandOrange)" />
+    <rect x="668" y="195" width="22" height="165" fill="#1a1a1a" rx="4" />
+    <rect x="695" y="210" width="20" height="135" fill="#222" rx="3" />
+    <rect x="719" y="230" width="16" height="95" fill="#1a1a1a" rx="2" />
+    <rect x="739" y="255" width="16" height="45" fill="#222" />
+    <rect x="656" y="260" width="12" height="35" fill="url(#wastelandOrange)" />
+  </g>
+
+  <g id="bodybuilder">
+    <path d="M 330,555 C 330,505 300,435 250,395 C 180,395 150,305 190,255 C 210,230 240,255 240,285 C 250,235 300,235 310,285 L 350,285 C 360,245 375,205 400,205 C 425,205 440,245 450,285 L 490,285 C 500,235 550,235 560,285 C 560,255 590,230 610,255 C 650,305 620,395 550,395 C 500,435 470,505 470,555 Z" fill="#1a1a1a" />
+    <path d="M 195,265 C 170,305 190,385 250,385 C 220,355 210,315 225,280 Z" fill="url(#wastelandOrange)" />
+    <path d="M 235,295 C 210,325 220,370 255,380 C 240,355 235,325 245,300 Z" fill="#111" />
+    <path d="M 605,265 C 630,305 610,385 550,385 C 580,355 590,315 575,280 Z" fill="url(#wastelandOrange)" />
+    <path d="M 565,295 C 590,325 580,370 545,380 C 560,355 565,325 555,300 Z" fill="#111" />
+    <path d="M 345,280 C 360,250 375,240 400,240 C 425,240 440,250 455,280 C 430,270 370,270 345,280 Z" fill="url(#wastelandOrange)" />
+    <path d="M 325,335 C 355,335 395,345 395,415 C 360,415 325,385 325,335 Z" fill="#252525" stroke="url(#wastelandOrange)" stroke-width="3" />
+    <path d="M 475,335 C 445,335 405,345 405,415 C 440,415 475,385 475,335 Z" fill="#252525" stroke="url(#wastelandOrange)" stroke-width="3" />
+    <path d="M 360,430 L 440,430 L 430,458 L 370,458 Z" fill="#111" stroke="url(#wastelandOrange)" stroke-width="2" />
+    <path d="M 365,472 L 435,472 L 425,500 L 375,500 Z" fill="#111" stroke="url(#wastelandOrange)" stroke-width="2" />
+    <path d="M 372,514 L 428,514 L 420,542 L 380,542 Z" fill="#111" stroke="url(#wastelandOrange)" stroke-width="2" />
+    <path d="M 215,270 C 215,245 245,245 245,270 C 245,275 215,275 215,270 Z" fill="#111" stroke="url(#wastelandOrange)" stroke-width="3" />
+    <path d="M 223,252 L 223,270 M 231,250 L 231,270 M 239,252 L 239,270" stroke="url(#wastelandOrange)" stroke-width="3" stroke-linecap="round" />
+    <path d="M 585,270 C 585,245 555,245 555,270 C 555,275 585,275 585,270 Z" fill="#111" stroke="url(#wastelandOrange)" stroke-width="3" />
+    <path d="M 577,252 L 577,270 M 569,250 L 569,270 M 561,252 L 561,270" stroke="url(#wastelandOrange)" stroke-width="3" stroke-linecap="round" />
+    <path d="M 365,215 C 365,165 405,145 400,145 C 395,145 435,165 435,215 C 435,255 420,260 400,260 C 380,260 365,255 365,215 Z" fill="#252525" stroke="url(#wastelandOrange)" stroke-width="4" />
+  </g>
+
+  <g id="radiation-symbol" transform="translate(400, 375)">
+    <circle cx="0" cy="0" r="12" fill="url(#toxicGreen)" />
+    <path d="M -9,-18 A 20,20 0 0,1 9,-18 L 22,-45 A 50,50 0 0,0 -22,-45 Z" fill="url(#toxicGreen)" />
+    <path d="M 20,2 A 20,20 0 0,1 11,16 L 33,35 A 50,50 0 0,0 42,-11 Z" fill="url(#toxicGreen)" />
+    <path d="M -11,16 A 20,20 0 0,1 -20,2 L -42,-11 A 50,50 0 0,0 -33,35 Z" fill="url(#toxicGreen)" />
+  </g>
+</svg>

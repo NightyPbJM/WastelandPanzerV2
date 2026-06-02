@@ -607,6 +607,7 @@ function importData(file, onDone) {
         // Restore external keys if present in export
         if (imp._bkurStart) localStorage.setItem('panzer_bkur_start', imp._bkurStart);
         if (imp._dailySupps) localStorage.setItem('panzer_daily_supps', imp._dailySupps);
+        if (imp._ksmStart && imp.ksm) imp.ksm.cycleStart = imp._ksmStart;
         delete imp._bkurStart; delete imp._ksmStart; delete imp._dailySupps;
         Object.assign(state, initState(imp));
         migrateAndInit();
