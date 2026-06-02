@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="WASTELAND PANZER">
-<title>BALANCE — WASTELAND PANZER</title>
+<title>QUESTS — WASTELAND PANZER</title>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
 <link rel="manifest" href="./manifest.json">
 <style>/* injected */</style>
@@ -1136,161 +1136,214 @@ function validateCheckin(f) {
 }
 
 document.querySelector('style').textContent = SHARED_CSS;
+// ---- QUEST PAGE ----
 
-// ---- BALANCE PAGE ----
+// Weekly Raids
+function getWeekKey() {
+  const d = new Date();
+  const mon = new Date(d);
+  mon.setDate(d.getDate() - ((d.getDay()+6)%7));
+  return mon.toLocaleDateString('de-DE');
+}
 
-function render() {
+function loadQuestState() {
+  try {
+    const raw = state.questState || {};
+    const wk = getWeekKey();
+    return raw[wk] || {claimed:{}, checked:{}};
+  } catch(e) { return {claimed:{}, checked:{}}; }
+}
+
+function saveQuestState(qs) {
+  if (!state.questState) state.questState = {};
+  state.questState[getWeekKey()] = qs;
+  saveState();
+}
+
+// Weekly raid definitions
+const WEEKLY_RAIDS = [
+  {
+    id:'eisen_biegen',
+    name:'EISEN BIEGEN',
+    desc:'EGYM an 2+ verschiedenen Tagen diese Woche',
+    reward:'+50 XP STR',
+    rewardStat:'S', rewardXP:50,
+    check: () => {
+      const wk = getWeekKey();
+      const wkDate = parseDE(wk);
+      const egymDays = new Set(state.trainings.filter(t => {
+        if (t.type!=='egym') return false;
+        const td = parseDE(t.date);
+        return td && td >= wkDate;
+      }).map(t=>t.date));
+      return egymDays.size;
+    },
+    goal: 2
+  },
+  {
+    id:'wieselflink',
+    name:'WIESELFLINK',
+    desc:'Seil/Rad/Ergo an 2+ verschiedenen Tagen diese Woche',
+    reward:'+50 XP AGI',
+    rewardStat:'A', rewardXP:50,
+    check: () => {
+      const wk = getWeekKey();
+      const wkDate = parseDE(wk);
+      const days = new Set(state.trainings.filter(t => {
+        if (!['seil','bike','ergo'].includes(t.type)) return false;
+        const td = parseDE(t.date);
+        return td && td >= wkDate;
+      }).map(t=>t.date));
+      return days.size;
+    },
+    goal: 2
+  },
+  {
+    id:'bitterer_ernst',
+    name:'BITTERER ERNST',
+    desc:'Heidelberger 5x diese Woche eingenommen',
+    reward:'+50 XP CHA',
+    rewardStat:'C', rewardXP:50,
+    check: () => {
+      const wk = getWeekKey();
+      const wkDate = parseDE(wk);
+      const qs = loadQuestState();
+      return parseInt(qs.checked['heidelberger_count']||0, 10);
+    },
+    goal: 5
+  },
+  {
+    id:'coop_support',
+    name:'CO-OP SUPPORT',
+    desc:'Frayas Handball begleitet (manuell)',
+    reward:'+50 XP LCK',
+    rewardStat:'L', rewardXP:50,
+    check: () => {
+      const qs = loadQuestState();
+      return qs.checked['coop']?1:0;
+    },
+    goal: 1
+  },
+];
+
+const MAIN_QUESTS = [
+  {
+    id:'main_vf',
+    type:'HAUPTQUEST',
+    name:'ABRISS DES DACHSCHADENS',
+    req:'Viszeralfett < 10',
+    check: () => {
+      const vf = parseFloat(state.checkins.findLast(c=>c.visceral&&parseFloat(c.visceral)>0)?.visceral||99);
+      return vf < 10;
+    }
+  },
+  {
+    id:'dauerquest_leber',
+    type:'DAUERQUEST',
+    name:'LEBER-RETTER',
+    req:'Permanent aktiv — Cholin + Inositol + Heidelberger',
+    check: () => true
+  },
+  {
+    id:'bonus_handball',
+    type:'BONUS-QUEST',
+    name:'HANDBALL GOMMERN (LEGENDE)',
+    req:'Freischaltung: Viszeralfett < 10',
+    check: () => {
+      const vf = parseFloat(state.checkins.findLast(c=>c.visceral&&parseFloat(c.visceral)>0)?.visceral||99);
+      return vf < 10;
+    }
+  },
+];
+
+function claimRaid(id) {
+  const raid = WEEKLY_RAIDS.find(r=>r.id===id);
+  if (!raid) return;
+  const qs = loadQuestState();
+  if (qs.claimed[id]) return;
+  const progress = raid.check();
+  if (progress < raid.goal) { toast('Noch nicht erfüllt','err'); return; }
+  qs.claimed[id] = true;
+  saveQuestState(qs);
+  // Award XP
+  state.globalXP = (state.globalXP||0) + raid.rewardXP;
+  state.statTrainXP[raid.rewardStat] = (state.statTrainXP[raid.rewardStat]||0) + raid.rewardXP;
+  addEv('training', `RAID ABGESCHLOSSEN: ${raid.name} · ${raid.reward}`);
+  toast(`✓ ${raid.reward}`, 'amber');
+  saveState();
+  render();
+}
+
+function toggleCoopCheck() {
+  const qs = loadQuestState();
+  qs.checked['coop'] = !qs.checked['coop'];
+  saveQuestState(qs);
+  render();
+}
+
+function renderQuestPage() {
   const root = document.getElementById('root');
   const penSt = checkPenalty();
-  const latest = state.checkins[state.checkins.length-1]||{} || {};
+  const qs = loadQuestState();
+  const latest = state.checkins[state.checkins.length-1]||{};
+  const visVal = parseFloat(latest.visceral||99);
 
-  let h = renderHeader('balance.html');
+  let h = renderHeader('quest.html');
   if (penSt.active) h += `<div class="penalty-bar">⚠ PANZER ROSTET — ${penSt.days} TAGE INAKTIV</div>`;
 
   h += '<div class="scroll"><div class="pad">';
 
-  // SYMMETRIE
-  h += '<div class="sec-title">KÖRPER-SYMMETRIE</div>';
-  const pairs = [
-    {l:'lArm', r:'rArm', name:'Arm'},
-    {l:'lOber',r:'rOber',name:'Oberschenkel'},
-    {l:'lWade',r:'rWade',name:'Wade'},
-  ];
-  let hasAnyPair = false;
-  pairs.forEach(p => {
-    const lv = parseFloat(latest[p.l]||0), rv = parseFloat(latest[p.r]||0);
-    if (!lv || !rv) return;
-    hasAnyPair = true;
-    const diff = Math.abs(lv-rv);
-    const pct = Math.round((diff/Math.max(lv,rv))*100);
-    const ok = pct <= 2;
-    h += `<div class="sym-card${ok?' ok':' warn'}">
-      <div class="sym-header">
-        <div class="sym-name">${p.name.toUpperCase()}</div>
-        <div class="sym-status" style="color:${ok?'var(--glow)':'var(--amber)'}">${ok?'SYMMETRISCH':'ABWEICHUNG '+pct+'%'}</div>
-      </div>
-      <div class="sym-data">
-        <div>L: ${lv.toFixed(1)}cm</div>
-        <div>R: ${rv.toFixed(1)}cm</div>
-        <div>Diff: ${diff.toFixed(1)}cm</div>
-      </div>
+  // HAUPTQUESTS
+  h += '<div class="sec-title">HAUPTQUESTS</div>';
+  MAIN_QUESTS.forEach(q => {
+    const unlocked = q.check();
+    const badgeClass = q.type==='HAUPTQUEST'?'active':q.type==='DAUERQUEST'?'dauerquest':'locked';
+    const symbol = q.type==='HAUPTQUEST'?'!':q.type==='DAUERQUEST'?'~':'★';
+    h += `<div class="quest-card${unlocked?'':' locked'}">
+      <span class="quest-badge ${badgeClass}">[${unlocked?symbol:'?'}]</span>
+      <span class="quest-status ${unlocked?'active':'locked'}">${unlocked?'AKTIV':'GESPERRT'}</span>
+      <div class="quest-name">${q.name}</div>
+      <div class="quest-req">${q.req}</div>
     </div>`;
   });
-  if (!hasAnyPair) {
-    h += '<div style="font-size:9px;color:var(--gdim)">Körpermaße (L/R) eingeben für Symmetrie-Analyse.</div>';
-  }
 
-  // PUSH/PULL DYSBALANCE
-  h += '<div class="sec-title">PUSH/PULL BALANCE</div>';
-  const egymS = state.trainings.filter(t=>t.type==='egym');
-  if (egymS.length > 0) {
-    // Push: Brustpresse, Schulterpresse
-    // Pull: Latzug, Ruderzug, Rückentrainer
-    let pushVol=0, pullVol=0;
-    egymS.forEach(t => {
-      if (!t.exData) return;
-      ['brustpresse','schulterpresse'].forEach(id => {
-        (t.exData[id]||[]).forEach(s => { pushVol += (parseFloat(s.kg)||0)*(parseFloat(s.wdh)||0); });
-      });
-      ['latzug','ruderzug','rueckentrainer'].forEach(id => {
-        (t.exData[id]||[]).forEach(s => { pullVol += (parseFloat(s.kg)||0)*(parseFloat(s.wdh)||0); });
-      });
-    });
-    const total = pushVol + pullVol;
-    const pushPct = total>0 ? Math.round((pushVol/total)*100) : 50;
-    const pullPct = total>0 ? Math.round((pullVol/total)*100) : 50;
-    const balanced = Math.abs(pushPct-pullPct) <= 10;
+  // WEEKLY RAIDS
+  h += '<div class="sec-title">WEEKLY RAIDS — Woche ${getWeekKey()}</div>'.replace('${getWeekKey()}', getWeekKey());
+  WEEKLY_RAIDS.forEach(raid => {
+    const progress = raid.check();
+    const pct = Math.min(100, Math.round((progress/raid.goal)*100));
+    const done = progress >= raid.goal;
+    const claimed = !!qs.claimed[raid.id];
 
-    h += `<div class="card${balanced?'':' card-amber'}">
-      <div style="display:flex;justify-content:space-between;margin-bottom:5px">
-        <div style="font-size:9px;color:var(--gdim)">PUSH: ${pushPct}%</div>
-        <div style="font-size:9px;color:${balanced?'var(--glow)':'var(--amber)'}">${balanced?'AUSGEWOGEN':'UNBALANCE'}</div>
-        <div style="font-size:9px;color:var(--gdim)">PULL: ${pullPct}%</div>
-      </div>
-      <div style="height:8px;background:var(--g1);border:1px solid var(--gdim);overflow:hidden;display:flex">
-        <div style="height:100%;width:${pushPct}%;background:var(--blue);transition:width .5s"></div>
-        <div style="height:100%;width:${pullPct}%;background:var(--glow);transition:width .5s"></div>
-      </div>
-      <div style="display:flex;justify-content:space-between;margin-top:3px">
-        <div style="font-size:7px;color:var(--blue)">■ Push (Brust+Schulter)</div>
-        <div style="font-size:7px;color:var(--glow)">■ Pull (Lat+Ruder+Rücken)</div>
-      </div>
-    </div>`;
-  } else {
-    h += '<div style="font-size:9px;color:var(--gdim)">EGYM-Sessions für Push/Pull-Analyse erforderlich.</div>';
-  }
+    h += `<div class="quest-card${claimed?' done':''}">
+      <span class="quest-badge weekly">[RAID]</span>
+      <span class="quest-status ${claimed?'done':done?'active':'locked'}">${claimed?'CLAIMED':done?'ABHOLBAR':'IN PROGRESS'}</span>
+      <div class="quest-name">${raid.name}</div>
+      <div class="quest-req">${raid.desc}</div>
+      <div class="quest-reward">${raid.reward}</div>`;
 
-  // WHR
-  h += '<div class="sec-title">WAIST-TO-HIP RATIO</div>';
-  const taille = parseFloat(latest.taille||0);
-  const huefte = parseFloat(latest.huefte||0);
-  const whr = taille && huefte ? (taille/huefte) : null;
-  h += `<div class="card card-amber">
-    <div style="font-family:var(--fontd);font-size:22px;color:var(--amber);font-weight:700">${whr?whr.toFixed(3):'--'}</div>`;
-  if (whr) {
-    const whrStatus = whr<=0.87?'GUT':whr<=0.93?'MITTEL':'HOCH';
-    const whrCol = whr<=0.87?'var(--glow)':whr<=0.93?'var(--amber)':'var(--red)';
-    h += `<div style="font-size:9px;color:${whrCol};margin-top:2px">${whrStatus} — Ziel: &lt; 0.87</div>`;
-  } else {
-    h += `<div style="font-size:9px;color:var(--gdim)">Taille + Hüfte in Check-in eintragen</div>`;
-  }
-  h += '</div>';
-
-  // PAUSE
-  h += '<div class="sec-title">PAUSE / VERLETZUNG</div>';
-  const pause = state.pause || {};
-  h += `<div class="card${pause.active?' card-amber':''}">`;
-  if (pause.active) {
-    h += `<div style="font-size:10px;color:var(--amber);margin-bottom:4px">⏸ PAUSE AKTIV</div>`;
-    h += `<div style="font-size:9px;color:var(--gdim)">Grund: ${pause.reason||'--'}</div>`;
-    h += `<div style="font-size:9px;color:var(--gdim)">Seit: ${pause.startDate||'--'}</div>`;
-    h += `<button class="btn sm" onclick="endPause();render()">PAUSE BEENDEN</button>`;
-  } else {
-    h += `<div style="font-size:9px;color:var(--gdim);margin-bottom:6px">Keine aktive Pause. Penalty pausiert automatisch.</div>`;
-    h += `<div class="f-wrap"><div class="f-lbl">GRUND</div><input class="f-in" id="pause_reason" placeholder="Krankheit / Urlaub ..."></div>`;
-    h += `<button class="btn sm amber" onclick="startPauseFromPage()">PAUSE STARTEN</button>`;
-  }
-  h += '</div>';
-
-  // KÖRPERMASSE TREND
-  h += '<div class="sec-title">KÖRPERMASSE TREND</div>';
-  if (state.checkins.length >= 2) {
-    const first = state.checkins[0];
-    const last = latest;
-    const diffs = [
-      {lbl:'Taille',id:'taille',good:false},
-      {lbl:'Hüfte', id:'huefte',good:false},
-      {lbl:'Brust', id:'brust', good:true},
-      {lbl:'L.Arm', id:'lArm',  good:true},
-    ];
-    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">';
-    diffs.forEach(d => {
-      const fv = parseFloat(first[d.id]||0), lv = parseFloat(last[d.id]||0);
-      if (!fv||!lv) return;
-      const diff = lv-fv;
-      const isPos = d.good ? diff>0 : diff<0;
-      h += `<div style="border:1px solid var(--gdim);padding:5px 7px">
-        <div style="font-size:7px;color:var(--gdim)">${d.lbl}</div>
-        <div style="font-family:var(--fontd);font-size:14px;color:var(--tb)">${lv.toFixed(1)}</div>
-        <div style="font-size:8px;color:${isPos?'var(--glow)':'var(--red)'}">${diff>0?'+':''}${diff.toFixed(1)}cm</div>
+    if (raid.id==='coop_support') {
+      h += `<div style="margin-top:6px"><button class="btn sm${qs.checked['coop']?' amber':' ghost'}" onclick="toggleCoopCheck()">
+        ${qs.checked['coop']?'✓ BEGLEITET':'BEGLEITET?'}</button></div>`;
+    } else {
+      h += `<div class="quest-progress">
+        <div style="font-size:8px;color:var(--gdim)">${progress}/${raid.goal}</div>
+        <div class="quest-prog-bar"><div class="quest-prog-fill" style="width:${pct}%"></div></div>
       </div>`;
-    });
+    }
+
+    if (done && !claimed) {
+      h += `<button class="btn sm amber" onclick="claimRaid('${raid.id}')">BELOHNUNG ABHOLEN</button>`;
+    }
+
     h += '</div>';
-  } else {
-    h += '<div style="font-size:9px;color:var(--gdim)">Mind. 2 Check-ins für Trend.</div>';
-  }
+  });
 
   h += '</div></div>';
   root.innerHTML = h;
 }
 
-function startPauseFromPage() {
-  const reason = (document.getElementById('pause_reason')||{}).value||'';
-  startPause(reason);
-  toast('Pause gestartet','amber');
-  render();
-}
-
+function render() { renderQuestPage(); }
 render();
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
