@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a0f0a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WASTELAND PANZER">
+<title>DATEN -- WASTELAND PANZER</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<link rel="manifest" href="./manifest.json">
+<style>/* injected */</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+// ============================================================
+// WASTELAND PANZER v12 — CORE
+// ============================================================
+'use strict';
+
+const VET_YEAR = 1985;
+const VET_F = (new Date().getFullYear() - VET_YEAR) / 100 + 1;
+
+const STAT_DEFS = {
+  S:{name:"STRENGTH",   short:"STR", basis:"EGYM Score/KG",    anchor:true,  mt:"IRON TITAN",        mr:"Score/KG >= 60"},
+  P:{name:"PERCEPTION", short:"PER", basis:"Schlaf-Score Ø",   anchor:false, mt:"GHOST PROTOCOL",   mr:"Ø Score >= 70"},
+  E:{name:"ENDURANCE",  short:"END", basis:"Ausdauer-Score",   anchor:true,  mt:"MARATHON MACHINE", mr:"Ausdauer >= 50"},
+  C:{name:"CHARISMA",   short:"CHA", basis:"Supplement-Streak",anchor:false, mt:"DISCIPLINE ENGINE",mr:"Alle Supps 30d"},
+  I:{name:"INTELLIGENCE",short:"INT",basis:"Viszeralfett inv.", anchor:false, mt:"SYSTEM ANALYST",   mr:"VF <= 8"},
+  A:{name:"AGILITY",    short:"AGI", basis:"WHR + KFA",        anchor:false, mt:"SHADOW RUNNER",    mr:"WHR<=0.87+KFA<=22%"},
+  L:{name:"LUCK",       short:"LCK", basis:"Manuell",          anchor:false, mt:"WASTELAND VETERAN",mr:"Manuell"}
+};
+const KEYS = ["S","P","E","C","I","A","L"];
+
+const EGYM = [
+  {id:"beinstrecker",  name:"Beinstrecker",  stat:"A"},
+  {id:"schulterpresse",name:"Schulterpresse", stat:"S"},
+  {id:"latzug",        name:"Latzug",         stat:"S"},
+  {id:"beinbeuger",    name:"Beinbeuger",     stat:"A"},
+  {id:"rueckentrainer",name:"Rückentrainer",  stat:"E"},
+  {id:"bauchtrainer",  name:"Bauchtrainer",   stat:"E"},
+  {id:"ruderzug",      name:"Ruderzug",       stat:"S"},
+  {id:"brustpresse",   name:"Brustpresse",    stat:"S"}
+];
+
+const EGYM_MODES = [
+  {id:"regulaer",    name:"Regulär",       factor:1.0},
+  {id:"explosiv",    name:"Explosiv",      factor:1.2},
+  {id:"negativ",     name:"Negativ Kraft", factor:1.3},
+  {id:"isokinetisch",name:"Isokinetisch",  factor:1.4},
+  {id:"adaptiv",     name:"Adaptiv",       factor:1.5}
+];
+
+const SUPPS = [
+  {id:"kreatin",  name:"KREATIN", icon:"⚗️"},
+  {id:"zink",     name:"ZINK",    icon:"🔬"},
+  {id:"magnesium",name:"MAGNESI.",icon:"💊"},
+  {id:"omega3",   name:"OMEGA-3", icon:"🐟"},
+  {id:"d3k2",     name:"D3/K2",   icon:"☀️"}
+];
+
+const MEAS = [
+  {id:"kopf",    name:"Kopf"},    {id:"hals",   name:"Hals"},
+  {id:"schulter",name:"Schulter"},{id:"brust",  name:"Brust"},
+  {id:"taille",  name:"Taille"},  {id:"huefte", name:"Hüfte"},
+  {id:"lArm",    name:"L.Arm"},   {id:"rArm",   name:"R.Arm"},
+  {id:"lOber",   name:"L.Ober"},  {id:"rOber",  name:"R.Ober"},
+  {id:"lWade",   name:"L.Wade"},  {id:"rWade",  name:"R.Wade"}
+];
+
+const QUESTS = [
+  {id:"main", type:"HAUPTQUEST",  badge:"active",    title:"Abriss des Dachschadens",   req:"Visceral Fat < 10", locked:false},
+  {id:"liver",type:"DAUERQUEST",  badge:"dauerquest", title:"Leber-Retter",               req:"Permanent aktiv",   locked:false},
+  {id:"sve",  type:"BONUS-QUEST", badge:"locked",    title:"Handball Gommern (Legende)",req:"Visceral Fat < 10", locked:true,
+   unlockAt: v => v < 10}
+];
+
+const KSM_ON = 56, KSM_OFF = 14;
+const STORE_KEY = "ppv12";
+
+// ============================================================
+// DEFAULT STATE
+// ============================================================
+const DEFAULT_STATE = {
+  stats: {S:1,P:1,E:1,C:1,I:1,A:1,L:5},
+  checkins: [{date:"10.05.2026",weight:"107.4",visceral:"13.0",muscle:"73.1",fat:"27.8",bp:"128/83",sleep:"4.5",sleepScore:"58",whr:"",note:"ANKER"}],
+  trainings: [],
+  supplements: {},
+  suppStreaks: {},
+  globalXP: 0,
+  statTrainXP: {S:0,P:0,E:0,C:0,I:0,A:0,L:0},
+  mastery: {},
+  masteryLevel: {},
+  masteryTitles: {},
+  lastPenaltyDate: "",
+  pause: {active:false, reason:"", since:""},
+  ksm: {cycleStart:null, lastTakenDate:""},
+  events: [
+    {type:"system", date:"17.05.2026", msg:"WASTELAND PANZER v12 initialisiert."},
+    {type:"system", date:"17.05.2026", msg:`ANKER: 107.4kg · VF13.0 · KFA27.8% · BP128/83 · Score58 · Veteran ×${VET_F.toFixed(2)}`}
+  ]
+};
+
+// ============================================================
+// STATE MANAGEMENT
+// ============================================================
+function loadState() {
+  const keys = [STORE_KEY, "ppv8", "ppv7", "ppv6"];
+  for (const k of keys) {
+    try {
+      const s = localStorage.getItem(k);
+      if (s) return JSON.parse(s);
+    } catch(e) {}
+  }
+  return JSON.parse(JSON.stringify(DEFAULT_STATE));
+}
+
+function saveState() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch(e) {}
+}
+
+function initState(s) {
+  if (!Array.isArray(s.trainings)) s.trainings = [];
+  for (const k of ["supplements","suppStreaks","mastery","masteryLevel","masteryTitles"]) {
+    if (!s[k] || typeof s[k] !== "object") s[k] = {};
+  }
+  if (!s.statTrainXP) s.statTrainXP = {S:0,P:0,E:0,C:0,I:0,A:0,L:0};
+  if (!s.ksm) s.ksm = {cycleStart:null, lastTakenDate:""};
+  if (!s.pause) s.pause = {active:false, reason:"", since:""};
+  if (!s.lastPenaltyDate) s.lastPenaltyDate = "";
+  if (!s.globalXP && s.globalXP !== 0) s.globalXP = 0;
+  return s;
+}
+
+let state = initState(loadState());
+
+// ============================================================
+// HELPERS
+// ============================================================
+function today() { return new Date().toLocaleDateString("de-DE"); }
+
+function addEv(type, msg) {
+  state.events.push({type, date:today(), msg});
+  if (state.events.length > 300) state.events = state.events.slice(-300);
+}
+
+function daysBetween(a, b) {
+  const parse = s => { const [d,m,y] = s.split("."); return new Date(+y,+m-1,+d); };
+  return Math.round(Math.abs(parse(a) - parse(b)) / 86400000);
+}
+
+// ============================================================
+// KSM-66
+// ============================================================
+function getKsmState(ksm) {
+  if (!ksm?.cycleStart) return {phase:"idle", dayInPhase:0, totalDays:0, canTake:true, pct:0};
+  const daysSince = Math.floor((new Date() - new Date(ksm.cycleStart)) / 86400000);
+  const cycle = KSM_ON + KSM_OFF;
+  const dayInCycle = daysSince % cycle;
+  if (dayInCycle < KSM_ON) return {phase:"on", dayInPhase:dayInCycle+1, totalDays:KSM_ON, canTake:true, pct:((dayInCycle+1)/KSM_ON)*100};
+  const offDay = dayInCycle - KSM_ON + 1;
+  return {phase:"off", dayInPhase:offDay, totalDays:KSM_OFF, canTake:false, pct:(offDay/KSM_OFF)*100};
+}
+
+function toggleKsm() {
+  const ks = getKsmState(state.ksm);
+  if (ks.phase === "off") return;
+  if (!state.ksm.cycleStart) { state.ksm.cycleStart = new Date().toISOString(); addEv("chem","KSM-66 Zyklus gestartet."); }
+  const taken = state.ksm.lastTakenDate === today();
+  state.ksm.lastTakenDate = taken ? "" : today();
+  addEv("chem", `KSM-66 ${taken ? "✗ abgehakt" : `✓ genommen (Tag ${ks.dayInPhase}/${KSM_ON})`}`);
+  saveState();
+}
+
+// ============================================================
+// SUPPLEMENTS
+// ============================================================
+function toggleSupp(id) {
+  const d = today();
+  if (!state.supplements[d]) state.supplements[d] = {};
+  state.supplements[d][id] = !state.supplements[d][id];
+  SUPPS.forEach(s => { state.suppStreaks[s.id] = calcSuppStreak(s.id); });
+  const allToday = SUPPS.every(s => state.supplements[d]?.[s.id]);
+  if (allToday) {
+    let consec = 0;
+    for (const dt of Object.keys(state.supplements).sort().reverse()) {
+      if (SUPPS.every(s => state.supplements[dt]?.[s.id])) consec++;
+      else break;
+    }
+    if (consec > 0 && consec % 7 === 0) addEv("chem", `SUPPLEMENT STREAK: ${consec} Tage!`);
+  }
+  addEv("chem", `${state.supplements[d][id] ? "✓" : "✗"} ${id.toUpperCase()}`);
+  // Sync to panzer_daily_supps so supplements.html stays in sync
+  syncDailySuppsFromCore();
+  recalcStats();
+  saveState();
+}
+
+// Single source of truth: push core state.supplements into daily state
+function syncDailySuppsFromCore() {
+  try {
+    const d = today();
+    const raw = localStorage.getItem('panzer_daily_supps');
+    let daily = raw ? JSON.parse(raw) : {date: d, checked: {}};
+    if (daily.date !== d) daily = {date: d, checked: {}};
+    // Mirror all core supps into daily checked
+    const coreMap = {'kreatin':'supp_kreatin','zink':'supp_zink','magnesium':'supp_magnesium','omega3':'supp_omega','d3k2':'supp_d3'};
+    for (const [coreId, dailyId] of Object.entries(coreMap)) {
+      daily.checked[dailyId] = !!(state.supplements[d]?.[coreId]);
+    }
+    localStorage.setItem('panzer_daily_supps', JSON.stringify(daily));
+  } catch(e) {}
+}
+
+function calcSuppStreak(id) {
+  var sorted = Object.keys(state.supplements).sort(function(a, b) {
+    var pa=a.split('.'), pb=b.split('.');
+    var da=new Date(+pa[2],+pa[1]-1,+pa[0]);
+    var db=new Date(+pb[2],+pb[1]-1,+pb[0]);
+    return db - da; // neueste zuerst
+  });
+  var streak = 0;
+  for (var i=0; i<sorted.length; i++) {
+    if (state.supplements[sorted[i]] && state.supplements[sorted[i]][id]) streak++;
+    else break;
+  }
+  return streak;
+}
+
+// ============================================================
+// MASTERY
+// ============================================================
+function checkMastery(k) {
+  if (state.stats[k] < 10) return null;
+  const def = STAT_DEFS[k];
+  switch(k) {
+    case "S": {
+      const eg = state.trainings.filter(t => t.type === "egym");
+      if (!eg.length) return null;
+      const bw = parseFloat(state.checkins.at(-1)?.weight || 100);
+      const best = Math.max(...eg.map(t => t.score || 0));
+      return (best/bw) >= 60 ? def.mt : null;
+    }
+    case "P": {
+      const sl = state.checkins.filter(c => c.sleepScore && parseFloat(c.sleepScore) > 0).slice(-30);
+      if (sl.length < 7) return null;
+      const avg = sl.reduce((s,c) => s + parseFloat(c.sleepScore), 0) / sl.length;
+      return avg >= 70 ? def.mt : null;
+    }
+    case "E": {
+      const es = state.trainings.filter(t => t.type === "seil" || t.type === "bike");
+      if (!es.length) return null;
+      const best = Math.max(...es.map(t => t.type === "seil"
+        ? parseFloat(t.dauer||0) * (parseFloat(t.rpm||0)/100)
+        : parseFloat(t.distanz||0) * (parseFloat(t.belastung||0)/10)));
+      return best >= 50 ? def.mt : null;
+    }
+    case "C": return Math.min(...SUPPS.map(s => state.suppStreaks[s.id]||0)) >= 30 ? def.mt : null;
+    case "I": {
+      const vf = state.checkins.findLast(c => c.visceral && parseFloat(c.visceral) > 0)?.visceral;
+      return vf && parseFloat(vf) <= 8 ? def.mt : null;
+    }
+    case "A": {
+      let whr = null, kfa = null;
+      for (const c of [...state.checkins].reverse()) {
+        if (!whr && c.taille && c.huefte) whr = parseFloat(c.taille)/parseFloat(c.huefte);
+        if (!kfa && c.fat) kfa = parseFloat(c.fat);
+        if (whr && kfa) break;
+      }
+      return whr && kfa && whr <= 0.87 && kfa <= 22 ? def.mt : null;
+    }
+    case "L": return (state.masteryLevel?.L || 0) >= 1 ? def.mt : null;
+    default: return null;
+  }
+}
+
+// ============================================================
+// OBJECTIVE STAT CALCULATION
+// ============================================================
+function calcStats() {
+  const s = {...state.stats};
+
+  // STRENGTH — raw EGYM score / bodyweight
+  const egS = state.trainings.filter(t => t.type === "egym");
+  if (egS.length) {
+    const bw = parseFloat(state.checkins.at(-1)?.weight || 100);
+    const best = Math.max(...egS.map(t => t.score || 0));
+    const r = best / bw;
+    s.S = r>=60?10:r>=48?9:r>=38?8:r>=29?7:r>=21?6:r>=14?5:r>=9?4:r>=5?3:r>=2?2:1;
+  }
+
+  // PERCEPTION — 7-day avg sleep score
+  const slCI = state.checkins.filter(c => c.sleepScore && parseFloat(c.sleepScore) > 0);
+  if (slCI.length) {
+    const avg = slCI.slice(-7).reduce((sum,c) => sum + parseFloat(c.sleepScore), 0) / Math.min(7, slCI.length);
+    s.P = avg>=90?10:avg>=82?9:avg>=75?8:avg>=68?7:avg>=62?6:avg>=56?5:avg>=50?4:avg>=42?3:avg>=32?2:1;
+  }
+
+  // ENDURANCE — best seil or bike score
+  const endS = state.trainings.filter(t => t.type === "seil" || t.type === "bike");
+  if (endS.length) {
+    const best = Math.max(...endS.map(t => t.type === "seil"
+      ? parseFloat(t.dauer||0) * (parseFloat(t.rpm||0)/100)
+      : parseFloat(t.distanz||0) * (parseFloat(t.belastung||0)/10)));
+    s.E = best>=50?10:best>=38?9:best>=28?8:best>=20?7:best>=14?6:best>=9?5:best>=5?4:best>=2?3:best>=0.5?2:1;
+  }
+
+  // CHARISMA — avg supplement streak
+  const avgStreak = SUPPS.reduce((sum,sup) => sum + (state.suppStreaks[sup.id]||0), 0) / SUPPS.length;
+  s.C = avgStreak>=90?10:avgStreak>=60?9:avgStreak>=45?8:avgStreak>=30?7:avgStreak>=21?6:avgStreak>=14?5:avgStreak>=7?4:avgStreak>=3?3:avgStreak>=1?2:1;
+
+  // INTELLIGENCE — visceral fat inverted
+  const vfC = state.checkins.findLast(c => c.visceral && parseFloat(c.visceral) > 0);
+  if (vfC) {
+    const vf = parseFloat(vfC.visceral);
+    s.I = vf<=3?10:vf<=4?9:vf<=5?8:vf<=6?7:vf<=8?6:vf<=10?5:vf<=12?4:vf<=14?3:vf<=17?2:1;
+  }
+
+  // AGILITY — WHR + KFA
+  let whr = null, kfa = null;
+  for (const c of [...state.checkins].reverse()) {
+    if (!whr && c.taille && c.huefte && parseFloat(c.taille) > 0) whr = parseFloat(c.taille)/parseFloat(c.huefte);
+    if (!kfa && c.fat && parseFloat(c.fat) > 0) kfa = parseFloat(c.fat);
+    if (whr && kfa) break;
+  }
+  if (whr !== null || kfa !== null) {
+    const ws = whr===null?null:whr<=0.75?10:whr<=0.80?9:whr<=0.84?8:whr<=0.87?7:whr<=0.90?6:whr<=0.93?5:whr<=0.95?4:whr<=0.97?3:whr<=1.00?2:1;
+    const ks = kfa===null?null:kfa<=10?10:kfa<=13?9:kfa<=16?8:kfa<=19?7:kfa<=22?6:kfa<=25?5:kfa<=28?4:kfa<=32?3:kfa<=37?2:1;
+    // If only one value: use it alone. If both: average.
+    const agiVal = (ws!==null && ks!==null) ? Math.round((ws+ks)/2) : (ws!==null ? ws : ks);
+    s.A = Math.max(1, Math.min(10, agiVal));
+  }
+
+  return s;
+}
+
+function recalcStats() {
+  const newStats = calcStats();
+  for (const k of KEYS) {
+    if (k === "L") continue;
+    const old = state.stats[k], nv = newStats[k];
+    if (nv !== old) addEv(nv > old ? "level_up" : "level_down", `${k} → ${nv} ${nv > old ? "▲" : "▼"} (objektiv)`);
+    state.stats[k] = nv;
+    const mt = checkMastery(k);
+    if (mt && !state.masteryTitles[k]) {
+      state.masteryTitles[k] = mt;
+      addEv("mastery", `★ MASTERY: ${mt} (${k})`);
+    }
+  }
+  saveState();
+}
+
+// ============================================================
+// PENALTY
+// ============================================================
+function checkPenalty() {
+  if (state.pause?.active) return {days:0, active:false, paused:true};
+  const dates = [...state.checkins.map(c=>c.date), ...state.trainings.map(t=>t.date)];
+  if (!dates.length) return {days:0, active:false};
+  const parse = s => { const [d,m,y]=s.split("."); return new Date(+y,+m-1,+d); };
+  const latest = dates.reduce((a,b) => parse(a) > parse(b) ? a : b);
+  const days = daysBetween(latest, today());
+  if (days >= 4 && state.lastPenaltyDate !== today()) {
+    state.lastPenaltyDate = today();
+    const pen = [];
+    for (const k of KEYS) {
+      if (!STAT_DEFS[k].anchor && state.stats[k] > 1) { state.stats[k]--; pen.push(k); }
+    }
+    if (pen.length) { addEv("penalty", `⚠ PANZER ROSTET: ${days}d inaktiv. Abzug: ${pen.join(",")} -1`); saveState(); }
+    return {days, active:true};
+  }
+  return {days, active: days >= 4};
+}
+
+// ============================================================
+// PAUSE
+// ============================================================
+function togglePause(reason) {
+  if (state.pause?.active) {
+    const dur = daysBetween(state.pause.since, today());
+    addEv("system", `PAUSE BEENDET nach ${dur}d (${state.pause.reason})`);
+    state.pause = {active:false, reason:"", since:""};
+    // Reset penalty clock to today so no rust penalty fires after pause
+    state.lastPenaltyDate = today();
+    addEv("system", "Inaktivitaets-Timer zurueckgesetzt. Kein Penalty fuer Pause-Zeitraum.");
+  } else {
+    state.pause = {active:true, reason: reason||"Krankheit", since:today()};
+    addEv("system", `PAUSE: ${state.pause.reason}`);
+  }
+  saveState();
+}
+
+// ============================================================
+// XP ENGINE
+// ============================================================
+function xpForLevel(n) { return Math.round(500 * Math.pow(n, 1.25)); }
+
+function getLvlInfo(totalXP) {
+  let xp = totalXP || 0, level = 1;
+  while (xp >= xpForLevel(level)) { xp -= xpForLevel(level); level++; }
+  return {level, cur:Math.round(xp), need:xpForLevel(level)};
+}
+
+function statXpThresh(v) { return Math.round(200 * Math.pow(v, 1.25)); }
+
+function calcEgymXP(form, bw, mf) {
+  let total = 0;
+  const statXP = {S:0, A:0, E:0};
+  for (const ex of EGYM) {
+    const kg = parseFloat(form[`${ex.id}_kg`]||0);
+    const wdh = parseFloat(form[`${ex.id}_wdh`]||0);
+    const xp = (kg / parseFloat(bw||100)) * wdh * mf;
+    total += xp;
+    statXP[ex.stat] = (statXP[ex.stat]||0) + xp;
+  }
+  return {total: Math.round(total*10)/10, statXP};
+}
+
+function calcSeilXP(dauer, rpm) {
+  const base = parseFloat(dauer||0) * (parseFloat(rpm||0)/100) * 5;
+  const b = base * VET_F;
+  return {total: Math.round(b*10)/10, statXP: {E: Math.round(b*0.6*10)/10, A: Math.round(b*0.4*10)/10}};
+}
+
+function calcBikeXP(distanz, belastung) {
+  const base = parseFloat(distanz||0) * (parseFloat(belastung||0)/10);
+  const b = base * VET_F;
+  return {total: Math.round(b*10)/10, statXP: {E: Math.round(b*0.6*10)/10, A: Math.round(b*0.4*10)/10}};
+}
+
+function calcSleepXP(score) { return Math.round(parseFloat(score||0) * 0.5 * VET_F * 10) / 10; }
+
+function applyXP(xpResult) {
+  state.globalXP = (state.globalXP||0) + xpResult.total;
+  if (!state.statTrainXP) state.statTrainXP = {S:0,P:0,E:0,C:0,I:0,A:0,L:0};
+  for (const [k, xp] of Object.entries(xpResult.statXP)) {
+    if (!xp) continue;
+    if (state.stats[k] >= 10) {
+      state.mastery[k] = (state.mastery[k]||0) + xp;
+      const ml = Math.floor((state.mastery[k]||0) / 500);
+      if (ml > (state.masteryLevel[k]||0)) {
+        state.masteryLevel[k] = ml;
+        addEv("mastery", `${k} OVERCHARGE +${ml} ★`);
+      }
+      state.statTrainXP[k] = 0;
+    } else {
+      state.statTrainXP[k] = (state.statTrainXP[k]||0) + xp;
+      if (state.statTrainXP[k] >= statXpThresh(state.stats[k])) {
+        state.statTrainXP[k] = 0;
+        addEv("training", `TRN XP VOLL: ${k} Balken zurückgesetzt.`);
+      }
+    }
+  }
+}
+
+// ============================================================
+// PROCESS ACTIONS
+// ============================================================
+function processCheckin(f) {
+  if (f.taille && f.huefte && parseFloat(f.taille) > 0 && parseFloat(f.huefte) > 0)
+    f.whr = (parseFloat(f.taille)/parseFloat(f.huefte)).toFixed(3);
+  if (f.sleepScore && parseFloat(f.sleepScore) > 0) {
+    const sxp = calcSleepXP(f.sleepScore);
+    state.globalXP = (state.globalXP||0) + sxp;
+    state.statTrainXP.P = (state.statTrainXP.P||0) + sxp;
+    f.sleepXP = sxp;
+  }
+  state.checkins.push({date:today(), ...f});
+  addEv("checkin", `CHECK-IN: ${f.weight}kg · VF${f.visceral}${f.whr ? ` · WHR:${f.whr}` : ""}${f.sleepScore ? ` · Score:${f.sleepScore}${f.sleepXP ? ` (+${f.sleepXP}XP)` : ""}` : ""}`);
+  recalcStats();
+  saveState();
+}
+
+function processEgym(f) {
+  const bw = parseFloat(state.checkins.at(-1)?.weight || 100);
+  const modeObj = EGYM_MODES.find(m => m.id === f.modeId) || EGYM_MODES[3];
+  const score = EGYM.reduce((sum,ex) => sum + parseFloat(f[`${ex.id}_kg`]||0) * parseFloat(f[`${ex.id}_wdh`]||0), 0);
+  const xpR = calcEgymXP(f, bw, modeObj.factor);
+  const prev = state.trainings.filter(t => t.type === "egym");
+  const ps = prev.at(-1)?.score || 0;
+  state.trainings.push({type:"egym", date:today(), score:Math.round(score), modeId:modeObj.id, modeFactor:modeObj.factor, sessionXP:xpR.total, ...f});
+  applyXP(xpR);
+  addEv("training", `EGYM [${modeObj.name}]: Score ${Math.round(score)} · +${xpR.total} XP${score>ps?" ▲":score<ps?" ▼":""}`);
+  recalcStats();
+  saveState();
+}
+
+function processSeil(f) {
+  const xpR = calcSeilXP(f.dauer, f.rpm);
+  const sessionXP = (xpR && xpR.total) ? xpR.total : 0;
+
+  // Check if a seil session already exists for today — update it instead of adding new
+  const todayIdx = state.trainings.findIndex(function(t){ return t.type==='seil' && t.date===today(); });
+  if (todayIdx >= 0) {
+    const existing = state.trainings[todayIdx];
+    // Accumulate values
+    const newDauer  = (parseFloat(existing.dauer||0) + parseFloat(f.dauer||0));
+    const newRunden = (parseInt(existing.runden||0,10) + parseInt(f.runden||0,10));
+    // Weighted average RPM
+    const newRPM = existing.rpm && f.rpm
+      ? Math.round((parseFloat(existing.rpm)*parseFloat(existing.dauer||1) + parseFloat(f.rpm)*parseFloat(f.dauer||1)) / newDauer)
+      : parseFloat(existing.rpm||f.rpm||0);
+    // Recalc XP for combined session
+    const combinedXP = calcSeilXP(newDauer, newRPM);
+    const combinedSessionXP = (combinedXP && combinedXP.total) ? combinedXP.total : 0;
+
+    // XP diff: add only the delta
+    const xpDelta = combinedSessionXP - parseFloat(existing.sessionXP||0);
+    if (xpDelta > 0) {
+      state.globalXP = (state.globalXP||0) + xpDelta;
+      state.statTrainXP.E = (state.statTrainXP.E||0) + xpDelta*0.6;
+      state.statTrainXP.A = (state.statTrainXP.A||0) + xpDelta*0.4;
+    }
+
+    // Update existing entry in place
+    state.trainings[todayIdx] = {
+      type:'seil', date:today(),
+      dauer:newDauer, rpm:newRPM, runden:newRunden,
+      sessionXP:combinedSessionXP,
+      note: [existing.note, f.note].filter(Boolean).join(' + ')
+    };
+    addEv("training", "SEIL +: "+newDauer.toFixed(1)+"min · "+newRPM+"RPM · "+newRunden+"R · Gesamt "+combinedSessionXP+" XP");
+  } else {
+    // First session of the day — just push
+    state.trainings.push({type:'seil', date:today(), sessionXP:sessionXP, dauer:parseFloat(f.dauer||0), rpm:parseFloat(f.rpm||0), runden:parseInt(f.runden||0,10), note:f.note||''});
+    applyXP(xpR);
+    addEv("training", "SEIL: "+f.dauer+"min · "+f.rpm+"RPM · "+f.runden+"R · +"+sessionXP+" XP");
+  }
+  recalcStats();
+  saveState();
+}
+
+function processBike(f) {
+  const xpR = calcBikeXP(f.distanz, f.belastung);
+  state.trainings.push({type:"bike", date:today(), sessionXP:xpR.total, ...f});
+  applyXP(xpR);
+  addEv("training", `RAD: ${f.distanz}km · ${f.avgSpeed}km/h · Bel:${f.belastung} · +${xpR.total} XP`);
+  recalcStats();
+  saveState();
+}
+
+// ============================================================
+// MIGRATION
+// ============================================================
+function migrateAndInit() {
+  // Guard: never lose checkins during migration
+  const savedCheckins = state.checkins ? [...state.checkins] : [];
+  // Fix EGYM scores: raw kg*wdh only, no mode factor
+  let needRecalc = false;
+  for (const t of state.trainings) {
+    if (t.type === "egym") {
+      const raw = EGYM.reduce((sum,ex) => sum + parseFloat(t[`${ex.id}_kg`]||0) * parseFloat(t[`${ex.id}_wdh`]||0), 0);
+      if (t.score !== Math.round(raw)) { t.score = Math.round(raw); needRecalc = true; }
+    }
+  }
+  if (needRecalc || (state.globalXP === 0 && state.trainings.length > 0)) {
+    state.globalXP = 0;
+    state.statTrainXP = {S:0,P:0,E:0,C:0,I:0,A:0,L:0};
+    const bw = parseFloat(state.checkins.at(-1)?.weight || 100);
+    for (const t of state.trainings) {
+      let r;
+      if (t.type === "egym") r = calcEgymXP(t, bw, t.modeFactor||1.4);
+      else if (t.type === "seil") r = calcSeilXP(t.dauer, t.rpm);
+      else if (t.type === "bike") r = calcBikeXP(t.distanz, t.belastung);
+      if (r) {
+        state.globalXP += r.total;
+        for (const [k,xp] of Object.entries(r.statXP)) state.statTrainXP[k] = (state.statTrainXP[k]||0) + xp;
+      }
+    }
+    if (needRecalc) addEv("system", "v12: EGYM Scores neu berechnet (ohne Modusfaktor).");
+  }
+  // Restore checkins if migration wiped them
+  if (state.checkins.length === 0 && savedCheckins.length > 0) {
+    state.checkins = savedCheckins;
+    addEv('system','Koerpermaße wiederhergestellt nach Migration.');
+  }
+  recalcStats();
+  checkPenalty();
+}
+
+migrateAndInit();
+
+// ============================================================
+// EXPORT / IMPORT
+// ============================================================
+function exportData() {
+  // Include external localStorage keys in export
+  var exportState = JSON.parse(JSON.stringify(state));
+  exportState._bkurStart = localStorage.getItem('panzer_bkur_start') || null;
+  exportState._ksmStart  = state.ksm ? state.ksm.cycleStart : null;
+  exportState._dailySupps = localStorage.getItem('panzer_daily_supps') || null;
+  const b = new Blob([JSON.stringify(exportState, null, 2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(b);
+  a.download = "wasteland-panzer-" + today().replace(/\./g,"-") + ".json";
+  a.click();
+}
+
+function importData(file, onDone) {
+  var r = new FileReader();
+  r.onload = function(ev) {
+    try {
+      var imp = JSON.parse(ev.target.result);
+      if (imp.stats && imp.checkins) {
+        // Restore external keys if present in export
+        if (imp._bkurStart) localStorage.setItem('panzer_bkur_start', imp._bkurStart);
+        if (imp._dailySupps) localStorage.setItem('panzer_daily_supps', imp._dailySupps);
+        delete imp._bkurStart; delete imp._ksmStart; delete imp._dailySupps;
+        Object.assign(state, initState(imp));
+        migrateAndInit();
+        saveState();
+        if (onDone) onDone(true);
+      } else { if (onDone) onDone(false); }
+    } catch(e) { if (onDone) onDone(false); }
+  };
+  r.readAsText(file);
+}
+
+function resetData() {
+  localStorage.removeItem(STORE_KEY);
+  Object.assign(state, initState(JSON.parse(JSON.stringify(DEFAULT_STATE))));
+  saveState();
+}
+
+// ============================================================
+function deleteTraining(idx) {
+  if (!confirm('Training löschen?')) return;
+  var removed = state.trainings.splice(idx, 1)[0];
+  // Recalc XP from scratch
+  state.globalXP = 0;
+  state.statTrainXP = {S:0,P:0,E:0,C:0,I:0,A:0,L:0};
+  var bw = parseFloat((state.checkins[state.checkins.length-1]||{}).weight||100);
+  state.trainings.forEach(function(t) {
+    var r;
+    if (t.type==='egym') r = calcEgymXP(t, bw, t.modeFactor||1.4);
+    else if (t.type==='seil') r = calcSeilXP(t.dauer, t.rpm);
+    else if (t.type==='bike') r = calcBikeXP(t.distanz, t.belastung);
+    if (r) {
+      state.globalXP += r.total;
+      Object.keys(r.statXP||{}).forEach(function(k){ state.statTrainXP[k]=(state.statTrainXP[k]||0)+r.statXP[k]; });
+    }
+  });
+  addEv('system','Training gelöscht: '+removed.type+' '+removed.date);
+  recalcStats(); saveState();
+}
+
+// ============================================================
+// CHECK-IN VALIDATION (inline, no confirm dialog)
+// ============================================================
+var VALIDATION_LIMITS = {
+  weight:   2.0,
+  muscle:   1.5,
+  fat:      1.5,
+  visceral: 1.0
+};
+
+// Returns object: {valid: bool, errors: {fieldId: message}}
+function validateCheckinInline(newVals) {
+  var last = null;
+  for (var i = state.checkins.length - 1; i >= 0; i--) {
+    var c = state.checkins[i];
+    if (c.weight && parseFloat(c.weight) > 0) { last = c; break; }
+  }
+  if (!last) return {valid:true, errors:{}};
+
+  var errors = {};
+  var checks = [
+    {field:'ci_weight',   newV:newVals.weight,   lastV:last.weight,   limit:VALIDATION_LIMITS.weight,   unit:'kg'},
+    {field:'ci_muscle',   newV:newVals.muscle,   lastV:last.muscle,   limit:VALIDATION_LIMITS.muscle,   unit:'kg'},
+    {field:'ci_fat',      newV:newVals.fat,       lastV:last.fat,      limit:VALIDATION_LIMITS.fat,      unit:'%'},
+    {field:'ci_visceral', newV:newVals.visceral,  lastV:last.visceral, limit:VALIDATION_LIMITS.visceral, unit:'Pkt'},
+  ];
+
+  checks.forEach(function(c) {
+    if (c.newV && c.lastV && parseFloat(c.newV) > 0 && parseFloat(c.lastV) > 0) {
+      var diff = Math.abs(parseFloat(c.newV) - parseFloat(c.lastV));
+      if (diff > c.limit) {
+        errors[c.field] = 'Abw. ' + diff.toFixed(1) + c.unit + ' (max ' + c.limit + c.unit + ')';
+      }
+    }
+  });
+
+  return {valid: Object.keys(errors).length === 0, errors: errors};
+}
+
+// Apply inline error styles to fields
+function applyCheckinErrors(errors) {
+  // Reset all first
+  ['ci_weight','ci_muscle','ci_fat','ci_visceral'].forEach(function(id) {
+    var el = document.getElementById(id);
+    var errEl = document.getElementById(id + '_err');
+    if (el) { el.style.borderColor = ''; el.style.color = ''; }
+    if (errEl) errEl.remove();
+  });
+  // Apply errors
+  Object.keys(errors).forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) {
+      el.style.borderColor = 'var(--red)';
+      el.style.color = 'var(--red)';
+      el.value = ''; // Clear only the bad field
+      el.focus();
+      // Insert error message below field
+      var errDiv = document.createElement('div');
+      errDiv.id = id + '_err';
+      errDiv.style.cssText = 'font-size:8px;color:var(--red);margin-top:2px;letter-spacing:1px;';
+      errDiv.textContent = errors[id];
+      el.parentNode.appendChild(errDiv);
+    }
+  });
+}
+
+function deleteCheckin(idx) {
+  if (!confirm('Check-in loeschen?')) return;
+  state.checkins.splice(idx, 1);
+  addEv('system', 'Check-in geloescht (Index ' + idx + ')');
+  recalcStats();
+  saveState();
+}
+
+// WASTELAND PANZER v12 — UI HELPERS
+// ============================================================
+'use strict';
+
+// TOAST
+let _toastTimer = null;
+function toast(msg, type="") {
+  clearTimeout(_toastTimer);
+  document.querySelector(".toast")?.remove();
+  const t = document.createElement("div");
+  t.className = `toast ${type}`.trim();
+  t.textContent = msg;
+  document.body.appendChild(t);
+  _toastTimer = setTimeout(() => t.remove(), 2500);
+}
+
+// RADAR
+function drawRadar(canvas) {
+  const W=canvas.width, H=canvas.height, cx=W/2, cy=H/2, R=Math.min(W,H)*0.37;
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0,0,W,H);
+  const labels=["STR","PER","END","INT","AGI","LCK"];
+  const keys=["S","P","E","I","A","L"];
+  const N=6;
+  const vals = keys.map(k => state.stats[k]);
+  const pt = (i,v) => { const a=(Math.PI*2*i/N)-Math.PI/2; return {x:cx+R*(v/10)*Math.cos(a), y:cy+R*(v/10)*Math.sin(a)}; };
+  const op = i => { const a=(Math.PI*2*i/N)-Math.PI/2; return {x:cx+R*Math.cos(a), y:cy+R*Math.sin(a)}; };
+
+  for (let ring=2; ring<=10; ring+=2) {
+    ctx.beginPath();
+    for (let i=0;i<N;i++) { const p=pt(i,ring); i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y); }
+    ctx.closePath();
+    ctx.strokeStyle = ring===10?"rgba(68,255,68,0.3)":"rgba(68,255,68,0.1)";
+    ctx.lineWidth = 1; ctx.stroke();
+  }
+  for (let i=0;i<N;i++) {
+    const o=op(i); ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(o.x,o.y);
+    ctx.strokeStyle="rgba(68,255,68,0.2)"; ctx.lineWidth=1; ctx.stroke();
+  }
+
+  ctx.beginPath();
+  vals.forEach((v,i) => { const p=pt(i,v); i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y); });
+  ctx.closePath();
+  ctx.fillStyle="rgba(68,255,68,0.15)"; ctx.fill();
+  ctx.strokeStyle="rgba(68,255,68,0.9)"; ctx.lineWidth=2;
+  ctx.shadowColor="#44ff44"; ctx.shadowBlur=8; ctx.stroke(); ctx.shadowBlur=0;
+
+  vals.forEach((v,i) => {
+    const p=pt(i,v);
+    ctx.beginPath(); ctx.arc(p.x,p.y,3,0,Math.PI*2);
+    ctx.fillStyle="#44ff44"; ctx.shadowColor="#44ff44"; ctx.shadowBlur=8; ctx.fill(); ctx.shadowBlur=0;
+  });
+
+  ctx.textAlign="center"; ctx.textBaseline="middle";
+  labels.forEach((lbl,i) => {
+    const a=(Math.PI*2*i/N)-Math.PI/2;
+    ctx.font='bold 8px "Share Tech Mono"'; ctx.fillStyle="#88cc88"; ctx.shadowColor="#44ff44"; ctx.shadowBlur=3;
+    ctx.fillText(lbl, cx+(R+16)*Math.cos(a), cy+(R+16)*Math.sin(a));
+    const vp=pt(i,vals[i]);
+    ctx.font='bold 9px "Orbitron"'; ctx.fillStyle="#aaffaa"; ctx.shadowBlur=5;
+    ctx.fillText(vals[i], vp.x+Math.cos(a)*9, vp.y+Math.sin(a)*9);
+  });
+  ctx.shadowBlur=0;
+}
+
+// SPARKLINE
+function drawSparkline(canvas, values, isGood) {
+  if (!canvas || values.length < 2) return;
+  const W=canvas.width, H=canvas.height, ctx=canvas.getContext("2d");
+  ctx.clearRect(0,0,W,H);
+  const min=Math.min(...values), max=Math.max(...values), range=max-min||1;
+  const pts = values.map((v,i) => ({x:(i/(values.length-1))*W, y:H-((v-min)/range)*(H-4)-2}));
+  const col = isGood?"rgba(68,255,68,":"rgba(255,68,68,";
+
+  ctx.beginPath(); ctx.moveTo(pts[0].x,H);
+  pts.forEach(p => ctx.lineTo(p.x,p.y));
+  ctx.lineTo(pts.at(-1).x,H); ctx.closePath();
+  const g = ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,col+"0.3)"); g.addColorStop(1,col+"0.02)");
+  ctx.fillStyle=g; ctx.fill();
+
+  ctx.beginPath();
+  pts.forEach((p,i) => i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));
+  ctx.strokeStyle=isGood?"rgba(68,255,68,0.9)":"rgba(255,68,68,0.8)";
+  ctx.lineWidth=1.5; ctx.shadowColor=isGood?"#44ff44":"#ff4444"; ctx.shadowBlur=4; ctx.stroke(); ctx.shadowBlur=0;
+
+  const last=pts.at(-1);
+  ctx.beginPath(); ctx.arc(last.x,last.y,2.5,0,Math.PI*2);
+  ctx.fillStyle=isGood?"#44ff44":"#ff4444"; ctx.shadowColor=isGood?"#44ff44":"#ff4444";
+  ctx.shadowBlur=7; ctx.fill(); ctx.shadowBlur=0;
+}
+
+// TOPBAR — rendered on every page
+function renderTopbar(activePage) {
+  const paused = state.pause?.active;
+  const penalty = checkPenalty();
+  const gLvl = getLvlInfo(state.globalXP);
+  const gPct = Math.round((gLvl.cur/gLvl.need)*100);
+
+  return `
+    <div class="hdr">
+      <div class="hdr-title">WASTELAND PANZER</div>
+      <div class="hdr-sub">GOMMERN WASTELAND &nbsp;·&nbsp; GLOBAL LVL <span style="color:var(--glow);font-family:var(--fontd)">${gLvl.level}</span> &nbsp;·&nbsp; VET ×${VET_F.toFixed(2)}</div>
+      <div class="hdr-xpbar">
+        <span class="hdr-xplbl">XP</span>
+        <div class="hdr-xptrack"><div class="hdr-xpfill" style="width:${gPct}%"></div></div>
+        <span class="hdr-xpnum">${gLvl.cur}/${gLvl.need}</span>
+      </div>
+    </div>
+    <div class="topbar">
+      <button class="tb-btn" onclick="exportData()">📤</button>
+      <button class="tb-btn" onclick="document.getElementById('imp').click()">📥</button>
+      <input type="file" id="imp" accept=".json" style="display:none" onchange="handleImport(event)">
+      <button class="tb-btn${paused?" tb-pause":""}" onclick="openPauseModal()">${paused?"▶ RESUME":"⏸ PAUSE"}</button>
+      <a class="tb-btn${activePage==="main"?" tb-active":""}" href="index.html">ÜBERSICHT</a>
+      <a class="tb-btn${activePage==="training"?" tb-active":""}" href="training.html">TRAINING</a>
+      <a class="tb-btn${activePage==="log"?" tb-active":""}" href="log.html">LOG</a>
+      <a class="tb-btn${activePage==="balance"?" tb-active":""}" href="balance.html">BALANCE</a>
+      <a class="tb-btn${activePage==="supps"?" tb-active":""}" href="supplements.html">SUPPS</a>
+      <a class="tb-btn${activePage==="data"?" tb-active":""}" href="data.html">DATEN</a>
+    </div>
+    ${paused?`<div class="pause-banner">⏸ PAUSE: ${state.pause.reason} (seit ${state.pause.since})</div>`:""}
+    ${!paused&&penalty.active?`<div class="penalty-alert">⚠ PANZER ROSTET — ${penalty.days} TAGE INAKTIV</div>`:""}
+  `;
+}
+
+// SHARED MODAL HELPERS
+let _activeModal = null;
+function openModal(html) {
+  closeModal();
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.id = "pp-modal";
+  overlay.innerHTML = `<div class="modal">${html}</div>`;
+  overlay.addEventListener("click", e => { if (e.target === overlay) closeModal(); });
+  document.body.appendChild(overlay);
+  _activeModal = overlay;
+}
+function closeModal() {
+  document.getElementById("pp-modal")?.remove();
+  _activeModal = null;
+}
+
+// PAUSE MODAL
+function openPauseModal() {
+  const pa = state.pause?.active;
+  openModal(`
+    <div class="modal-title">${pa?"▶ PAUSE BEENDEN":"⏸ PAUSE AKTIVIEREN"}</div>
+    <div class="modal-sub">Kein Penalty während Pause. Stats eingefroren.</div>
+    ${pa ? `
+      <div style="padding:10px 0;font-size:11px;color:var(--amber);">
+        Aktive Pause: ${state.pause.reason}<br>Seit: ${state.pause.since}
+      </div>
+      <div class="mactions">
+        <button class="btn" onclick="togglePause();closeModal();location.reload();">PAUSE BEENDEN</button>
+        <button class="btn btn-cancel" onclick="closeModal()">ABBRUCH</button>
+      </div>
+    ` : `
+      <div class="f-wrap">
+        <div class="f-lbl">GRUND</div>
+        <input class="f-in" id="pause_reason" placeholder="Darmentzündung, Verletzung..." value="Krankheit">
+      </div>
+      <div class="mactions">
+        <button class="btn btn-amber" onclick="handlePauseSave()">PAUSE AKTIVIEREN</button>
+        <button class="btn btn-cancel" onclick="closeModal()">ABBRUCH</button>
+      </div>
+    `}
+  `);
+}
+function handlePauseSave() {
+  const r = document.getElementById("pause_reason")?.value || "Krankheit";
+  togglePause(r);
+  closeModal();
+  location.reload();
+}
+function handleImport(e) {
+  const f = e.target.files[0]; if (!f) return;
+  importData(f, ok => {
+    toast(ok ? "✓ Import OK" : "⚠ Ungültig", ok ? "" : "err");
+    if (ok) location.reload();
+  });
+}
+
+// SHARED CSS
+const SHARED_CSS = `
+:root{--g0:#000d00;--g1:#001a00;--g2:#003300;--glow:#44ff44;--gdim:#226622;--gfaint:#112211;--amber:#ffaa00;--red:#ff4444;--blue:#44aaff;--purple:#aa44ff;--text:#88cc88;--textbright:#aaffaa;--font:'Share Tech Mono',monospace;--fontd:'Orbitron',sans-serif;}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;background:var(--g0);color:var(--text);font-family:var(--font);overflow:hidden;}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 50% 30%,rgba(0,80,0,0.18) 0%,transparent 70%);pointer-events:none;z-index:0;}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,0.08) 3px,rgba(0,0,0,0.08) 4px);pointer-events:none;z-index:9998;}
+#root{position:fixed;inset:0;display:flex;flex-direction:column;z-index:1;overflow:hidden;}
+.hdr{text-align:center;padding:5px 12px 3px;border-bottom:1px solid var(--gdim);flex-shrink:0;background:rgba(0,10,0,0.6);}
+.hdr-title{font-family:var(--fontd);font-size:18px;font-weight:900;color:var(--glow);letter-spacing:4px;text-shadow:0 0 12px var(--glow);line-height:1;}
+.hdr-sub{font-size:8px;color:var(--gdim);letter-spacing:2px;margin-top:1px;}
+.hdr-xpbar{display:flex;gap:5px;align-items:center;margin-top:3px;}
+.hdr-xplbl{font-size:7px;color:var(--amber);white-space:nowrap;}
+.hdr-xptrack{flex:1;height:5px;background:var(--g1);border:1px solid #332200;overflow:hidden;}
+.hdr-xpfill{height:100%;background:linear-gradient(90deg,var(--amber),#ffcc44);box-shadow:0 0 5px var(--amber);transition:width .5s;}
+.hdr-xpnum{font-size:7px;color:var(--amber);white-space:nowrap;}
+.topbar{display:flex;gap:2px;padding:3px 6px;border-bottom:1px solid var(--gdim);flex-shrink:0;background:rgba(0,8,0,0.8);flex-wrap:wrap;}
+.tb-btn{background:transparent;border:1px solid var(--gdim);color:var(--gdim);padding:3px 6px;cursor:pointer;font-family:var(--font);font-size:7px;letter-spacing:1px;text-align:center;transition:all .2s;text-decoration:none;display:inline-block;}
+.tb-btn:active,.tb-btn.tb-active{border-color:var(--glow);color:var(--glow);}
+.tb-btn.tb-pause{border-color:var(--amber);color:var(--amber);}
+.pause-banner{background:#0a0800;border-bottom:1px solid var(--amber);padding:3px 10px;font-size:9px;color:var(--amber);text-align:center;flex-shrink:0;}
+.penalty-alert{background:#1a0000;border-bottom:1px solid var(--red);padding:3px 10px;font-size:9px;color:var(--red);text-align:center;flex-shrink:0;}
+.scroll{flex:1;min-height:0;overflow-y:scroll;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior-y:contain;}
+.scroll::-webkit-scrollbar{width:3px;}
+.scroll::-webkit-scrollbar-thumb{background:var(--gdim);}
+.pad{padding:10px 12px;}
+.section-title{font-size:8px;color:var(--gdim);letter-spacing:2px;margin-bottom:6px;border-top:1px solid var(--gdim);padding-top:5px;}
+.card{border:1px solid var(--gdim);padding:8px 10px;margin-bottom:7px;background:var(--gfaint);}
+.card-title{font-size:8px;color:var(--gdim);letter-spacing:2px;margin-bottom:3px;}
+.btn{width:100%;margin-top:7px;background:var(--gfaint);border:1px solid var(--glow);color:var(--glow);padding:11px;cursor:pointer;font-family:var(--font);font-size:10px;letter-spacing:2px;text-shadow:0 0 8px var(--glow);transition:all .2s;}
+.btn:active{background:rgba(68,255,68,0.15);}
+.btn-seil{border-color:var(--blue);color:var(--blue);text-shadow:0 0 8px var(--blue);}
+.btn-bike{border-color:#00ccff;color:#00ccff;}
+.btn-amber{border-color:var(--amber);color:var(--amber);text-shadow:none;}
+.btn-cancel{border-color:var(--red);color:var(--red);text-shadow:none;box-shadow:none;}
+.btn-reset{border-color:var(--red);color:var(--red);text-shadow:none;}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,5,0,0.95);display:flex;align-items:center;justify-content:center;z-index:5000;}
+.modal{background:var(--g1);border:1px solid var(--glow);padding:18px 16px;width:93%;max-width:400px;max-height:88vh;overflow-y:auto;box-shadow:0 0 30px rgba(68,255,68,0.2);}
+.modal-title{font-family:var(--fontd);font-size:12px;color:var(--glow);letter-spacing:2px;margin-bottom:2px;text-shadow:0 0 8px var(--glow);}
+.modal-sub{font-size:7px;color:var(--gdim);letter-spacing:1px;margin-bottom:10px;}
+.modal-sec{font-size:8px;color:var(--amber);letter-spacing:2px;margin:10px 0 5px;border-top:1px solid var(--g2);padding-top:6px;}
+.f-lbl{font-size:7px;color:var(--gdim);letter-spacing:1px;margin-bottom:2px;}
+.f-wrap{margin-bottom:7px;}
+.f-in{background:var(--g0);border:1px solid var(--gdim);color:var(--textbright);padding:5px 7px;width:100%;font-family:var(--font);font-size:11px;outline:none;transition:border-color .2s;}
+.f-in:focus{border-color:var(--glow);}
+.f-g2{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+.f-g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;}
+.ex-row{display:grid;grid-template-columns:1fr 65px 65px;gap:4px;align-items:center;margin-bottom:5px;padding-bottom:5px;border-bottom:1px solid var(--g2);}
+.ex-lbl{font-size:8px;color:var(--text);}
+.mactions{display:flex;gap:7px;margin-top:12px;}
+.mactions .btn{margin-top:0;flex:1;padding:8px;}
+.score-prev{background:var(--g0);border:1px solid var(--gdim);padding:6px;text-align:center;margin:8px 0;}
+.score-prev-val{font-family:var(--fontd);font-size:22px;color:var(--glow);font-weight:700;}
+.score-prev-xp{font-size:10px;color:var(--amber);margin-top:2px;}
+.score-prev-lbl{font-size:7px;color:var(--gdim);margin-top:1px;}
+.data-card{border:1px solid var(--gdim);padding:7px 9px;margin-bottom:5px;font-size:9px;}
+.data-date{color:var(--glow);margin-bottom:3px;font-size:8px;}
+.data-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px 10px;}
+.dl{color:var(--gdim);}.dv{color:var(--text);}
+.dn{margin-top:3px;color:var(--gdim);font-size:8px;border-top:1px solid var(--g2);padding-top:2px;}
+.log-entry{margin-bottom:4px;line-height:1.5;border-left:2px solid var(--gdim);padding-left:7px;font-size:9px;}
+.log-entry.level_up{border-color:var(--glow);color:var(--glow);}
+.log-entry.level_down{border-color:var(--red);color:var(--red);}
+.log-entry.checkin{border-color:var(--blue);color:var(--blue);}
+.log-entry.training{border-color:var(--amber);color:var(--amber);}
+.log-entry.chem{border-color:var(--purple);color:var(--purple);}
+.log-entry.penalty{border-color:var(--red);color:var(--red);}
+.log-entry.mastery{border-color:var(--amber);color:var(--amber);}
+.log-entry.system{color:var(--gdim);}
+.log-date{color:var(--gdim);margin-right:5px;}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--g1);border:1px solid var(--glow);color:var(--glow);padding:7px 16px;font-size:9px;z-index:6000;white-space:nowrap;animation:tin .25s ease,tout .25s ease 1.75s both;}
+.toast.err{border-color:var(--red);color:var(--red);}
+.toast.mst{border-color:var(--amber);color:var(--amber);}
+@keyframes tin{from{opacity:0;transform:translateX(-50%) translateY(6px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+@keyframes tout{from{opacity:1}to{opacity:0}}
+`;
+
+document.querySelector('style').textContent = SHARED_CSS;
+
+function render(){
+  var h=renderTopbar('data');
+  h+='<div class="scroll"><div class="pad">';
+  h+='<div style="font-size:8px;color:var(--gdim);margin-bottom:6px;">KOERPER-DATEN ('+state.checkins.length+')</div>';
+  var ciLen=state.checkins.length;
+  [...state.checkins].reverse().forEach(function(c,revIdx){
+    var realIdx=ciLen-1-revIdx;
+    var delBtn=realIdx>0?'<span onclick="deleteCheckinAndRender('+realIdx+')" style="cursor:pointer;color:var(--red);font-size:9px;padding:2px 6px;border:1px solid var(--red);">DEL</span>':'';
+    h+='<div class="data-card"><div class="data-date" style="display:flex;justify-content:space-between;"><span>'+c.date+'</span>'+delBtn+'</div><div class="data-grid">';
+    [['Gewicht',c.weight,'kg'],['Viszeralfett',c.visceral,''],['Muskelmasse',c.muscle,'kg'],['KFA',c.fat,'%'],['Blutdruck',c.bp,''],['Schlaf',c.sleep,'h'],['Score',c.sleepScore,''],['WHR',c.whr,''],
+     ...MEAS.map(function(m){return[m.name,c[m.id],'cm'];})
+    ].filter(function(x){return x[1];}).forEach(function(x){h+='<div class="dl">'+x[0]+':</div><div class="dv">'+x[1]+x[2]+'</div>';});
+    h+='</div>';if(c.note)h+='<div class="dn">'+c.note+'</div>';h+='</div>';
+  });
+
+  h+='<div style="font-size:8px;color:var(--gdim);margin:10px 0 5px;border-top:1px solid var(--gdim);padding-top:6px;">SUPPLEMENT-LOG</div>';
+  var sDates=Object.keys(state.supplements).sort(function(a,b){var pa=a.split('.'),pb=b.split('.');return new Date(+pb[2],+pb[1]-1,+pb[0])-new Date(+pa[2],+pa[1]-1,+pa[0]);}).slice(0,14);
+  sDates.forEach(function(d){
+    var s=state.supplements[d];
+    var taken=SUPPS.filter(function(sup){return s[sup.id];}).map(function(sup){return sup.name.slice(0,3);});
+    var missing=SUPPS.filter(function(sup){return !s[sup.id];}).map(function(sup){return sup.name.slice(0,3);});
+    h+='<div class="data-card" style="border-color:#221a33;"><div class="data-date" style="color:var(--purple);">'+d+'</div>';
+    h+='<div style="font-size:8px;color:var(--glow);">'+(taken.join(' ')||'--')+'</div>';
+    if(missing.length)h+='<div style="font-size:8px;color:var(--red);">x '+missing.join(' ')+'</div>';
+    h+='</div>';
+  });
+
+  if(state.trainings.length){
+    h+='<div style="font-size:8px;color:var(--gdim);margin:10px 0 5px;border-top:1px solid var(--gdim);padding-top:6px;">TRAINING ('+state.trainings.length+')</div>';
+    [...state.trainings].reverse().forEach(function(t){
+      if(t.type==='egym'){h+='<div class="data-card" style="border-color:#224422;"><div class="data-date" style="color:var(--glow);">EGYM '+t.date+' Score:'+t.score+' '+t.sessionXP+'XP</div><div class="data-grid">';EGYM.forEach(function(ex){h+='<div class="dl">'+ex.name+':</div><div class="dv">'+(t[ex.id+'_kg']||'-')+'x'+(t[ex.id+'_wdh']||'-')+'</div>';});h+='</div></div>';}
+      else if(t.type==='seil'){h+='<div class="data-card" style="border-color:#224466;"><div class="data-date" style="color:var(--blue);">SEIL '+t.date+' '+t.sessionXP+'XP</div><div class="data-grid"><div class="dl">Dauer:</div><div class="dv">'+(t.dauer||'?')+'min</div><div class="dl">RPM:</div><div class="dv">'+(t.rpm||'?')+'</div></div></div>';}
+      else if(t.type==='bike'){h+='<div class="data-card" style="border-color:#006688;"><div class="data-date" style="color:#00ccff;">'+(t.subtype==='ergometer'?'ERGO':'RAD')+' '+t.date+' '+t.sessionXP+'XP</div><div class="data-grid"><div class="dl">Distanz:</div><div class="dv">'+(t.distanz||'?')+'km</div><div class="dl">Dauer:</div><div class="dv">'+(t.dauer||'?')+'min</div></div></div>';}
+    });
+  }
+
+  h+='<div style="margin-top:12px;"><button class="btn btn-cancel" onclick="handleReset()">RESET -- ALLE DATEN LOESCHEN</button></div>';
+  h+='</div></div>';
+  document.getElementById('root').innerHTML=h;
+}
+function deleteCheckinAndRender(idx){deleteCheckin(idx);render();}
+function handleReset(){if(!confirm('ALLES ZURUECKSETZEN?'))return;resetData();toast('Reset','err');render();}
+render();
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+</script>
+</body>
+</html>
