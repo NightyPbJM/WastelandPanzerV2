@@ -322,6 +322,19 @@ function calcStats(st) {
     s.A = Math.max(1, Math.min(10, Math.round((ws+ks)/2)));
   }
 
+  // LAUFEN — Summe Schritte letzte 7 Tage
+  const schritte7 = (st.checkins||[])
+    .filter(c => c && c.schritte && parseInt(c.schritte,10) > 0)
+    .slice(-7)
+    .reduce((sum,c) => sum + parseInt(c.schritte,10), 0);
+  if (schritte7 > 0) {
+    if      (schritte7>=40000) s.L=10; else if (schritte7>=35000) s.L=9;
+    else if (schritte7>=30000) s.L=8;  else if (schritte7>=25000) s.L=7;
+    else if (schritte7>=20000) s.L=6;  else if (schritte7>=16000) s.L=5;
+    else if (schritte7>=12000) s.L=4;  else if (schritte7>=8000)  s.L=3;
+    else if (schritte7>=4000)  s.L=2;  else s.L=1;
+  }
+
   return s;
 }
 
@@ -1270,7 +1283,7 @@ function renderModal() {
     });
     h += '</div><div class="f-g2">';
     [['bp','Blutdruck','128/83'],['sleep','Schlaf (h)','4.5'],
-     ['sleepScore','Schlaf-Score','58'],['note','Notiz','']].forEach(([id,lbl,ph]) => {
+     ['sleepScore','Schlaf-Score','58'],['schritte','Schritte heute',''],['note','Notiz','']].forEach(([id,lbl,ph]) => {
       h += `<div class="f-wrap"><div class="f-lbl">${lbl}</div>
         <input class="f-in" id="ci_${id}" placeholder="${ph}" inputmode="${id==='bp'||id==='note'?'text':'decimal'}"></div>`;
     });
@@ -1314,7 +1327,7 @@ function startPauseModal() {
 
 function saveCheckin() {
   const f = {};
-  ['weight','visceral','muscle','fat','bp','sleep','sleepScore','note'].forEach(k => {
+  ['weight','visceral','muscle','fat','bp','sleep','sleepScore','schritte','note'].forEach(k => {
     f[k] = (document.getElementById('ci_'+k)||{}).value?.trim()||'';
   });
   MEASUREMENTS.forEach(m => {
