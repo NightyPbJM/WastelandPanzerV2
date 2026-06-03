@@ -187,7 +187,12 @@ if (!state.events) state.events = [];
 function getKsmState() {
   const ksm = state.ksm;
   if (!ksm || !ksm.cycleStart) return {phase:'idle', dayInPhase:0, totalDays:KSM_ON, pct:0};
-  const daysSince = Math.floor((new Date() - new Date(ksm.cycleStart)) / 86400000);
+  // Kalendertage: Startdatum bis heute (unabhängig von Uhrzeit)
+  const startDate = new Date(ksm.cycleStart);
+  const startDay = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+  const todayDay = new Date();
+  todayDay.setHours(0,0,0,0);
+  const daysSince = Math.round((todayDay - startDay) / 86400000);
   const cycle = KSM_ON + KSM_OFF;
   const dayInCycle = daysSince % cycle;
   if (dayInCycle < KSM_ON) return {phase:'on', dayInPhase:dayInCycle+1, totalDays:KSM_ON, canTake:true, pct:((dayInCycle+1)/KSM_ON)*100};
@@ -198,7 +203,12 @@ function getKsmState() {
 function getBkompState() {
   const startStr = localStorage.getItem('panzer_bkur_start');
   if (!startStr) return {phase:'idle', dayInPhase:0, totalDays:BKOMP_ON, pct:0};
-  const daysSince = Math.floor((new Date() - new Date(startStr)) / 86400000);
+  // Kalendertage
+  const startDate = new Date(startStr);
+  const startDay = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+  const todayDay = new Date();
+  todayDay.setHours(0,0,0,0);
+  const daysSince = Math.round((todayDay - startDay) / 86400000);
   const cycle = BKOMP_ON + BKOMP_OFF;
   const dayInCycle = daysSince % cycle;
   if (dayInCycle < BKOMP_ON) return {phase:'on', dayInPhase:dayInCycle+1, totalDays:BKOMP_ON, canTake:true, pct:((dayInCycle+1)/BKOMP_ON)*100};
