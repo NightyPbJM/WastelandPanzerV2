@@ -490,8 +490,7 @@ function processEgym(exData, modeId) {
 function processSeil(f) {
   // RPM calculated from jumps + seconds
   const jumps = parseInt(f.jumps||0,10);
-  const secs = parseFloat(f.seconds||0);
-  const rpm = secs > 0 ? Math.round((jumps/secs)*60) : 0;
+  const rpm = dauer > 0 ? Math.round(jumps/dauer) : 0;
   const dauer = parseMinSek(f.dauer);
   const xpResult = calcSeilXP(dauer, rpm);
   const todayIdx = state.trainings.findIndex(t=>t.type==='seil'&&t.date===today());
@@ -1207,14 +1206,11 @@ function renderModal() {
   if (modal==='seil') {
     h += '<div class="modal-title">SEIL SESSION</div><div class="modal-sub">RPM WIRD AUTOMATISCH BERECHNET</div>';
     h += '<div class="f-g2">';
-    h += '<div class="f-wrap"><div class="f-lbl">Dauer (min:sek)</div><input class="f-in" id="seil_dauer" placeholder="15:00" inputmode="text"></div>';
+    h += '<div class="f-wrap"><div class="f-lbl">Dauer (min:sek)</div><input class="f-in" id="seil_dauer" placeholder="15:00" inputmode="text" oninput="updateRpmPreview()"></div>';
+    h += '<div class="f-wrap"><div class="f-lbl">Gesamtsprünge</div><input class="f-in" id="seil_jumps" placeholder="800" inputmode="decimal" oninput="updateRpmPreview()"></div>';
+    h += '</div>';
     h += '<div class="f-wrap"><div class="f-lbl">Runden</div><input class="f-in" id="seil_runden" placeholder="8" inputmode="decimal"></div>';
-    h += '</div>';
-    h += '<div class="f-g2">';
-    h += '<div class="f-wrap"><div class="f-lbl">Sprünge (in Messintervall)</div><input class="f-in" id="seil_jumps" placeholder="18" inputmode="decimal" oninput="updateRpmPreview()"></div>';
-    h += '<div class="f-wrap"><div class="f-lbl">Sekunden (Messintervall)</div><input class="f-in" id="seil_secs" placeholder="10" inputmode="decimal" oninput="updateRpmPreview()"></div>';
-    h += '</div>';
-    h += '<div style="background:var(--g0);border:1px solid var(--gdim);padding:8px;text-align:center;margin:6px 0"><div style="font-family:var(--fontd);font-size:20px;color:var(--blue)" id="rpm_preview">-- RPM</div><div style="font-size:7px;color:var(--gdim)">Sprünge / Sekunden × 60</div></div>';
+    h += '<div style="background:var(--g0);border:1px solid var(--gdim);padding:8px;text-align:center;margin:6px 0"><div style="font-family:var(--fontd);font-size:20px;color:var(--blue)" id="rpm_preview">-- RPM</div><div style="font-size:7px;color:var(--gdim)">Gesamtsprünge / Gesamtminuten</div></div>';
     h += '<div class="mactions"><button class="btn blue" onclick="saveSeil()">SPEICHERN</button><button class="btn red" onclick="closeModal()">ABBRUCH</button></div>';
   }
 
@@ -1268,9 +1264,9 @@ function updateEgymPreview() {
 
 function updateRpmPreview() {
   var j=parseInt((document.getElementById('seil_jumps')||{}).value||0,10);
-  var s=parseFloat((document.getElementById('seil_secs')||{}).value||0);
+  var dur=parseMinSek((document.getElementById('seil_dauer')||{}).value||'');
   var el=document.getElementById('rpm_preview');
-  if(el) el.textContent = s>0 ? Math.round((j/s)*60)+' RPM' : '-- RPM';
+  if(el) el.textContent = (dur>0&&j>0) ? Math.round(j/dur)+' RPM' : '-- RPM';
 }
 
 function updateBikePreview() {
@@ -1299,9 +1295,8 @@ function saveSeil() {
   var dauer=(document.getElementById('seil_dauer')||{}).value||'';
   var runden=(document.getElementById('seil_runden')||{}).value||'';
   var jumps=(document.getElementById('seil_jumps')||{}).value||'';
-  var secs=(document.getElementById('seil_secs')||{}).value||'';
-  if (!dauer||!jumps||!secs) { toast('Dauer + Sprünge + Sekunden erforderlich','err'); return; }
-  processSeil({dauer:dauer, runden:runden, jumps:jumps, seconds:secs});
+  if (!dauer||!jumps) { toast('Dauer + Gesamtsprünge erforderlich','err'); return; }
+  processSeil({dauer:dauer, runden:runden, jumps:jumps, seconds:null});
   closeModal(); toast('Seil gespeichert'); render();
 }
 
