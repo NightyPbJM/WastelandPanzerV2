@@ -1236,20 +1236,21 @@ var WEEKLY_RAIDS = [
     desc:'Heidelberger 5x diese Woche',
     reward:'+100 XP', rewardXP:100, rewardStat:'C',
     check: function() {
-      // Zähle Tage dieser Woche wo Heidelberger in dailyOpt eingenommen wurde
+      // Zähle Tage dieser Woche mit "✓ HEIDELBERGER" Event
       var wkDate = parseDE(getWeekKey());
-      var count = 0;
-      // Prüfe state.supplements (falls als kern) und dailyOpt pro Tag
-      // Heidelberger ist in dailyOpt gespeichert - wir brauchen tägliche Snapshots
-      // Da dailyOpt nur heute speichert, nutzen wir events als Proxy
+      var wkEnd = new Date(wkDate); wkEnd.setDate(wkEnd.getDate()+6); wkEnd.setHours(23,59,59);
       var wkDateMs = wkDate ? wkDate.getTime() : 0;
+      // Pro Tag nur einmal zählen
+      var days = new Set();
       (state.events||[]).forEach(function(e) {
         if (e.type !== 'chem') return;
         var ed = parseDE(e.date);
-        if (!ed || ed.getTime() < wkDateMs) return;
-        if (e.msg && e.msg.indexOf('HEIDELBERGER') >= 0 && e.msg.indexOf('CHECK') >= 0) count++;
+        if (!ed || ed.getTime() < wkDateMs || ed > wkEnd) return;
+        if (e.msg && e.msg.indexOf('HEIDELBERGER') >= 0 && e.msg.indexOf('✓') >= 0) {
+          days.add(e.date);
+        }
       });
-      return count;
+      return days.size;
     }, goal:5
   },
   {
