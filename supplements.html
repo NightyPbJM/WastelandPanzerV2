@@ -1192,7 +1192,8 @@ function render() {
 
   const kernTaken = KERN_SUPPS.filter(s => todaySupps[s.id]).length;
   const kernTotal = KERN_SUPPS.length;
-  const hdlTaken = !!dailyOpt.checked['heidelberger'];
+  const todayDate = today();
+  const hdlTaken = !!(state.supplements[todayDate] && state.supplements[todayDate]['heidelberger']);
   const bkOn = bkSt.phase === 'on';
   const ksmOn = ksmSt.phase === 'on';
   const bkTaken = bkOn && !!dailyOpt.checked['bkomplex'];
@@ -1297,6 +1298,14 @@ function render() {
 }
 
 function doToggleKern(id) { toggleKernSupp(id); render(); }
+
+function doToggleHeidel() {
+  var d = today();
+  if (!state.supplements[d]) state.supplements[d] = {};
+  state.supplements[d]['heidelberger'] = !state.supplements[d]['heidelberger'];
+  addEv('chem', (state.supplements[d]['heidelberger'] ? '✓' : '✗') + ' HEIDELBERGER');
+  recalcAllStreaks(); saveState(); render();
+}
 
 function doToggleOpt(id) {
   if (id === 'bkomplex') {
