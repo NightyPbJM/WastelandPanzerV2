@@ -16,24 +16,23 @@
 <div id="root"></div>
 <script>
 // ============================================================
-// WASTELAND PANZER v3.0 — CORE
+// WASTELAND PANZER v3.2 — CORE
 // ============================================================
 
-// ---- CONSTANTS ----
-const VERSION = '3.0';
+const VERSION = '3.2';
 const VETERAN_YEAR = 1985;
 const VET = (new Date().getFullYear() - VETERAN_YEAR) / 100 + 1;
 const KSM_ON = 56, KSM_OFF = 14;
 const BKOMP_ON = 21, BKOMP_OFF = 14;
 
 const STAT_DEFS = {
-  S:{name:'STRENGTH',   short:'STR', basis:'EGYM Score/KG',    anchor:true},
-  P:{name:'PERCEPTION', short:'PER', basis:'Ø Schlaf-Score',   anchor:false},
-  E:{name:'ENDURANCE',  short:'END', basis:'Ausdauer-Score',   anchor:true},
-  C:{name:'CHARISMA',   short:'CHA', basis:'Supplement-Streak',anchor:false},
-  I:{name:'INTELLIGENCE',short:'INT',basis:'Viszeralfett inv.',anchor:false},
-  A:{name:'AGILITY',    short:'AGI', basis:'WHR + KFA',        anchor:false},
-  L:{name:'LUCK',       short:'LCK', basis:'Manuell',          anchor:false},
+  S:{name:'STRENGTH',    short:'STR', basis:'EGYM Score/KG',     anchor:true},
+  P:{name:'PERCEPTION',  short:'PER', basis:'Ø Schlaf-Score',    anchor:false},
+  E:{name:'ENDURANCE',   short:'END', basis:'Ausdauer-Score',    anchor:true},
+  C:{name:'CHARISMA',    short:'CHA', basis:'Supplement-Streak', anchor:false},
+  I:{name:'INTELLIGENCE',short:'INT', basis:'Viszeralfett inv.', anchor:false},
+  A:{name:'AGILITY',     short:'AGI', basis:'WHR + KFA',         anchor:false},
+  L:{name:'LUCK',        short:'LCK', basis:'Manuell',           anchor:false},
 };
 const KEYS = ['S','P','E','C','I','A','L'];
 
@@ -56,28 +55,28 @@ const EGYM_MODES = [
   {id:'adaptiv',     name:'Adaptiv',       factor:1.5},
 ];
 
-// 7 Kern-Supps (zählen für CHA-Streak)
+// 7 KERN-SUPPS (zählen für CHA-Streak)
 const KERN_SUPPS = [
-  {id:'kreatin',  name:'KREATIN',  icon:'⚗️', dose:'10g Clear Whey'},
-  {id:'zink',     name:'ZINK',     icon:'🔬', dose:'25mg (1 Tablette)'},
-  {id:'magnesium',name:'MAGNESI.', icon:'💊', dose:'300-400mg Bisglycinat'},
-  {id:'omega3',   name:'OMEGA-3',  icon:'🐟', dose:'2-3 Kapseln'},
-  {id:'d3k2',     name:'D3/K2',    icon:'☀️', dose:'4.000 IE + 1 EL Leinoel'},
-  {id:'cholin',   name:'CHOLIN',   icon:'🧠', dose:'1g Bitartrat'},
-  {id:'inositol', name:'INOSITOL', icon:'🌀', dose:'3g Myo-Inositol'},
+  {id:'kreatin',  name:'KREATIN',  icon:'⚗️', dose:'10g in Clear Whey',       desc:'Permanent-Dosis fuer den Protein-Stream.'},
+  {id:'zink',     name:'ZINK',     icon:'🔬', dose:'25mg Bisglycinat',         desc:'1 Tablette nach dem Schlafen.'},
+  {id:'magnesium',name:'MAGNESI.', icon:'💊', dose:'300-400mg Bisglycinat',    desc:'Vor dem Schlafen fuer Muskeln & Nerven.'},
+  {id:'omega3',   name:'OMEGA-3',  icon:'🐟', dose:'2-3 Kapseln',              desc:'Gesunde Fette fuer Herz & Gelenke.'},
+  {id:'d3k2',     name:'D3/K2',    icon:'☀️', dose:'5.000 IE + 1 EL Leinoel', desc:'Das Leinoel agiert als Fett-Taxi.'},
+  {id:'cholin',   name:'CHOLIN',   icon:'🧠', dose:'1g Bitartrat',             desc:'Fuer die Lebergesundheit frisch eingewogen.'},
+  {id:'inositol', name:'INOSITOL', icon:'🌀', dose:'3g Myo-Inositol',          desc:'Unterstuetzt den Zellstoffwechsel.'},
 ];
 
-// Optionale Supps (Kuren / situativ)
+// 4 OPTIONALE SUPPS (nicht für CHA-Streak)
 const OPT_SUPPS = [
-  {id:'heidelberger',name:'7 KRÄUTER',   icon:'🌿', dose:'½ TL nach Hauptmahlzeit', block:'morgens'},
-  {id:'bkomplex',    name:'B-KOMPLEX',   icon:'⚡', dose:'1 Tablette (Kur)',         block:'taeglich', kur:'bkomp'},
-  {id:'preworkout',  name:'PRE-WORKOUT', icon:'🔥', dose:'~20g in 300ml',            block:'preworkout', optional:true},
-  {id:'ashwa',       name:'KSM-66',      icon:'🌱', dose:'1 Dosis (Cortisol-Killer)',block:'abends',   kur:'ksm'},
+  {id:'heidelberger',name:'7 KRÄUTER',  icon:'🌿', dose:'½ TL pur',          desc:'Nach der Hauptmahlzeit. Starke Bitterstoffe fuer Magen & Darm.'},
+  {id:'bkomplex',    name:'B-KOMPLEX',  icon:'⚡', dose:'1 Tablette Intense', desc:'Dynamische Kur: 21 Tage ON / 14 Tage OFF.', kur:'bkomp'},
+  {id:'ashwa',       name:'KSM-66',     icon:'🌱', dose:'1 Dosis',            desc:'Cortisol-Killer. Kur: 56 Tage ON / 14 Tage OFF.', kur:'ksm'},
+  {id:'preworkout',  name:'PRE-WORKOUT',icon:'🔥', dose:'Nach Anleitung',     desc:'Nur an Trainingstagen als Booster vor dem Gym.'},
 ];
 
 const MEASUREMENTS = [
-  {id:'kopf',    name:'Kopf'},   {id:'hals',    name:'Hals'},
-  {id:'schulter',name:'Schulter'},{id:'brust',  name:'Brust'},
+  {id:'kopf',    name:'Kopf'},    {id:'hals',    name:'Hals'},
+  {id:'schulter',name:'Schulter'},{id:'brust',   name:'Brust'},
   {id:'taille',  name:'Taille'}, {id:'huefte',  name:'Hüfte'},
   {id:'lArm',    name:'L.Arm'},  {id:'rArm',    name:'R.Arm'},
   {id:'lOber',   name:'L.Ober'}, {id:'rOber',   name:'R.Ober'},
@@ -85,27 +84,23 @@ const MEASUREMENTS = [
 ];
 
 // ---- HELPERS ----
-function today() {
-  return new Date().toLocaleDateString('de-DE'); // DD.MM.YYYY
-}
+function today() { return new Date().toLocaleDateString('de-DE'); }
 
 function parseDE(s) {
-  // Parse DD.MM.YYYY to Date
   if (!s) return null;
-  const p = s.split('.');
+  const p = String(s).split('.');
   if (p.length !== 3) return null;
-  return new Date(parseInt(p[2]), parseInt(p[1])-1, parseInt(p[0]));
+  const d = new Date(parseInt(p[2]), parseInt(p[1])-1, parseInt(p[0]));
+  return isNaN(d.getTime()) ? null : d;
 }
 
 function daysBetween(a, b) {
-  // Both DD.MM.YYYY strings
   const da = parseDE(a), db = parseDE(b);
   if (!da || !db) return 0;
   return Math.round(Math.abs(db - da) / 86400000);
 }
 
 function parseMinSek(val) {
-  // "3:51" -> 3.85 min, "15" -> 15 min
   if (!val && val !== 0) return 0;
   const s = String(val).trim();
   if (s.includes(':')) {
@@ -116,13 +111,13 @@ function parseMinSek(val) {
 }
 
 function formatMinSek(decMin) {
-  // 3.85 -> "3:51"
   const m = Math.floor(decMin);
   const s = Math.round((decMin - m) * 60);
   return `${m}:${String(s).padStart(2,'0')}`;
 }
 
 function addEv(type, msg) {
+  if (!state.events) state.events = [];
   state.events.push({type, date:today(), msg});
   if (state.events.length > 300) state.events = state.events.slice(-300);
 }
@@ -136,8 +131,8 @@ const DEFAULT_STATE = {
     sleep:'4.5', sleepScore:'58', whr:'', note:'ANKER-DATEN'
   }],
   trainings: [],
-  supplements: {},   // {DD.MM.YYYY: {suppId: bool}}
-  suppStreaks: {},    // {suppId: number}
+  supplements: {},
+  suppStreaks: {},
   globalXP: 0,
   statTrainXP: {S:0,P:0,E:0,C:0,I:0,A:0,L:0},
   mastery: {},
@@ -146,28 +141,22 @@ const DEFAULT_STATE = {
   pause: {active:false, reason:'', startDate:''},
   ksm: {cycleStart:null, lastTakenDate:''},
   events: [
-    {type:'system', date:'10.05.2026', msg:`WASTELAND PANZER v${VERSION} — Veteran ×${VET.toFixed(2)}`},
+    {type:'system', date:'10.05.2026', msg:`WASTELAND PANZER v${VERSION} — Veteran x${VET.toFixed(2)}`},
     {type:'system', date:'10.05.2026', msg:'ANKER: 107.4kg · VF13.0 · KFA27.8% · BP128/83 · Score58'},
   ],
-  questState: {}, // {questId: {claimed, week}}
+  questState: {},
   version: VERSION,
 };
 
 const STATE_KEY = 'ppv3';
+const DAILY_OPT_KEY = 'panzer_daily_opt';
 
 function loadState() {
   try {
     const s = localStorage.getItem(STATE_KEY);
     if (s) return JSON.parse(s);
-    // Migration from ppv8
     const old = localStorage.getItem('ppv8');
-    if (old) {
-      const o = JSON.parse(old);
-      o.version = VERSION;
-      if (!o.pause) o.pause = {active:false, reason:'', startDate:''};
-      if (!o.questState) o.questState = {};
-      return o;
-    }
+    if (old) { const o = JSON.parse(old); o.version = VERSION; return o; }
   } catch(e) {}
   return JSON.parse(JSON.stringify(DEFAULT_STATE));
 }
@@ -177,73 +166,67 @@ function saveState() {
 }
 
 let state = loadState();
-// Ensure all keys exist
-['trainings','supplements','suppStreaks','mastery','masteryLevel','statTrainXP','questState'].forEach(k => {
-  if (!state[k]) state[k] = k === 'trainings' ? [] : {};
+['supplements','suppStreaks','mastery','masteryLevel','questState'].forEach(k => {
+  if (!state[k]) state[k] = {};
 });
 if (!Array.isArray(state.trainings)) state.trainings = [];
 if (!state.statTrainXP) state.statTrainXP = {S:0,P:0,E:0,C:0,I:0,A:0,L:0};
-if (!state.lastPenaltyDate) state.lastPenaltyDate = '';
 if (!state.pause) state.pause = {active:false, reason:'', startDate:''};
 if (!state.ksm) state.ksm = {cycleStart:null, lastTakenDate:''};
 if (!state.globalXP) state.globalXP = 0;
+if (!state.events) state.events = [];
 
-// ---- KSM STATE ----
+// ---- KSM / BKOMP CYCLE STATE ----
 function getKsmState() {
   const ksm = state.ksm;
-  if (!ksm?.cycleStart) return {phase:'idle', dayInPhase:0, totalDays:KSM_ON, pct:0};
+  if (!ksm || !ksm.cycleStart) return {phase:'idle', dayInPhase:0, totalDays:KSM_ON, pct:0};
   const daysSince = Math.floor((new Date() - new Date(ksm.cycleStart)) / 86400000);
   const cycle = KSM_ON + KSM_OFF;
   const dayInCycle = daysSince % cycle;
-  if (dayInCycle < KSM_ON) {
-    return {phase:'on', dayInPhase:dayInCycle+1, totalDays:KSM_ON, canTake:true, pct:((dayInCycle+1)/KSM_ON)*100};
-  }
+  if (dayInCycle < KSM_ON) return {phase:'on', dayInPhase:dayInCycle+1, totalDays:KSM_ON, canTake:true, pct:((dayInCycle+1)/KSM_ON)*100};
   const offDay = dayInCycle - KSM_ON + 1;
   return {phase:'off', dayInPhase:offDay, totalDays:KSM_OFF, canTake:false, pct:(offDay/KSM_OFF)*100};
 }
 
-// ---- BKOMP STATE ----
 function getBkompState() {
   const startStr = localStorage.getItem('panzer_bkur_start');
   if (!startStr) return {phase:'idle', dayInPhase:0, totalDays:BKOMP_ON, pct:0};
   const daysSince = Math.floor((new Date() - new Date(startStr)) / 86400000);
   const cycle = BKOMP_ON + BKOMP_OFF;
   const dayInCycle = daysSince % cycle;
-  if (dayInCycle < BKOMP_ON) {
-    return {phase:'on', dayInPhase:dayInCycle+1, totalDays:BKOMP_ON, canTake:true, pct:((dayInCycle+1)/BKOMP_ON)*100};
-  }
+  if (dayInCycle < BKOMP_ON) return {phase:'on', dayInPhase:dayInCycle+1, totalDays:BKOMP_ON, canTake:true, pct:((dayInCycle+1)/BKOMP_ON)*100};
   const offDay = dayInCycle - BKOMP_ON + 1;
   return {phase:'off', dayInPhase:offDay, totalDays:BKOMP_OFF, canTake:false, pct:(offDay/BKOMP_OFF)*100};
 }
 
-// ---- SUPPLEMENT STREAK ----
+// ---- STREAK (nur KERN_SUPPS) ----
 function calcSuppStreak(id) {
-  // Chronological sort DD.MM.YYYY
   const dates = Object.keys(state.supplements).sort((a,b) => {
     const da = parseDE(a), db = parseDE(b);
-    return db - da; // newest first
+    if (!da || !db) return 0;
+    return db - da;
   });
   let streak = 0;
   for (const d of dates) {
-    if (state.supplements[d]?.[id]) streak++;
+    if (state.supplements[d] && state.supplements[d][id]) streak++;
     else break;
   }
   return streak;
 }
 
 function recalcAllStreaks() {
-  const allIds = [...KERN_SUPPS.map(s=>s.id), ...OPT_SUPPS.map(s=>s.id)];
-  allIds.forEach(id => { state.suppStreaks[id] = calcSuppStreak(id); });
+  // Only KERN_SUPPS count for streaks
+  KERN_SUPPS.forEach(s => { state.suppStreaks[s.id] = calcSuppStreak(s.id); });
 }
 
 // ---- STAT CALCULATION ----
 function calcStats(st) {
   const s = {...st.stats};
 
-  // STRENGTH — best EGYM score / bodyweight
-  const egymS = st.trainings.filter(t => t.type==='egym');
+  // STRENGTH
+  const egymS = (st.trainings||[]).filter(t => t.type==='egym');
   if (egymS.length > 0) {
-    const lastCI = st.checkins && st.checkins.length ? st.checkins.findLast(c=>c&&c.weight) : null;
+    const lastCI = (st.checkins && st.checkins.length) ? st.checkins.findLast(c=>c&&c.weight) : null;
     const bw = lastCI ? parseFloat(lastCI.weight) : 107.4;
     const best = Math.max(...egymS.map(t => t.score||0));
     const ratio = best / bw;
@@ -254,8 +237,8 @@ function calcStats(st) {
     else if (ratio>=2)  s.S=2;  else s.S=1;
   }
 
-  // PERCEPTION — 7-day avg sleep score
-  const sleepCI = st.checkins.filter(c => c.sleepScore && parseFloat(c.sleepScore)>0);
+  // PERCEPTION
+  const sleepCI = (st.checkins||[]).filter(c => c.sleepScore && parseFloat(c.sleepScore)>0);
   if (sleepCI.length > 0) {
     const recent = sleepCI.slice(-7);
     const avg = recent.reduce((sum,c) => sum+parseFloat(c.sleepScore),0) / recent.length;
@@ -266,13 +249,12 @@ function calcStats(st) {
     else if (avg>=32) s.P=2;  else s.P=1;
   }
 
-  // ENDURANCE — best seil or bike score
-  const endS = st.trainings.filter(t => t.type==='seil'||t.type==='bike'||t.type==='ergo');
+  // ENDURANCE
+  const endS = (st.trainings||[]).filter(t => ['seil','bike','ergo'].includes(t.type));
   if (endS.length > 0) {
     const best = Math.max(...endS.map(t => {
       if (t.type==='seil') return parseFloat(t.dauer||0)*(parseFloat(t.rpm||0)/100);
-      if (t.type==='bike') return parseFloat(t.distanz||0)*(parseFloat(t.belastung||0)/10);
-      if (t.type==='ergo') return parseFloat(t.dauer||0)*1.0; // ergo: dauer as score base
+      if (t.type==='bike'||t.type==='ergo') return parseFloat(t.distanz||0)*(parseFloat(t.avgSpeed||0)/10);
       return 0;
     }));
     if      (best>=50) s.E=10; else if (best>=38) s.E=9;
@@ -282,7 +264,7 @@ function calcStats(st) {
     else if (best>=0.5)s.E=2;  else s.E=1;
   }
 
-  // CHARISMA — avg of 7 kern supp streaks
+  // CHARISMA — avg of KERN_SUPPS streaks only (7 supps)
   const streaks = KERN_SUPPS.map(sup => st.suppStreaks[sup.id]||0);
   const avg = streaks.reduce((a,b)=>a+b,0) / streaks.length;
   if      (avg>=90) s.C=10; else if (avg>=60) s.C=9;
@@ -292,8 +274,8 @@ function calcStats(st) {
   else if (avg>=1)  s.C=2;  else s.C=1;
 
   // INTELLIGENCE — visceral fat inverted
-  const _vfEntry = st.checkins && st.checkins.length ? st.checkins.findLast(c=>c&&c.visceral&&parseFloat(c.visceral)>0) : null;
-  const latestVF = _vfEntry ? parseFloat(_vfEntry.visceral) : NaN;
+  const vfEntry = (st.checkins&&st.checkins.length) ? st.checkins.findLast(c=>c&&c.visceral&&parseFloat(c.visceral)>0) : null;
+  const latestVF = vfEntry ? parseFloat(vfEntry.visceral) : NaN;
   if (!isNaN(latestVF)) {
     if      (latestVF<=3)  s.I=10; else if (latestVF<=4)  s.I=9;
     else if (latestVF<=5)  s.I=8;  else if (latestVF<=6)  s.I=7;
@@ -304,7 +286,7 @@ function calcStats(st) {
 
   // AGILITY — WHR + KFA
   let lWHR=null, lKFA=null;
-  for (let i=st.checkins.length-1; i>=0; i--) {
+  for (let i=(st.checkins||[]).length-1; i>=0; i--) {
     const c = st.checkins[i];
     if (!lWHR && c.taille && c.huefte && parseFloat(c.taille)>0)
       lWHR = parseFloat(c.taille)/parseFloat(c.huefte);
@@ -314,14 +296,14 @@ function calcStats(st) {
   }
   if (lWHR !== null || lKFA !== null) {
     let ws=5, ks=5;
-    if (lWHR !== null) {
+    if (lWHR!==null) {
       if      (lWHR<=0.75) ws=10; else if (lWHR<=0.80) ws=9;
       else if (lWHR<=0.84) ws=8;  else if (lWHR<=0.87) ws=7;
       else if (lWHR<=0.90) ws=6;  else if (lWHR<=0.93) ws=5;
       else if (lWHR<=0.95) ws=4;  else if (lWHR<=0.97) ws=3;
       else if (lWHR<=1.00) ws=2;  else ws=1;
     }
-    if (lKFA !== null) {
+    if (lKFA!==null) {
       if      (lKFA<=10) ks=10; else if (lKFA<=13) ks=9;
       else if (lKFA<=16) ks=8;  else if (lKFA<=19) ks=7;
       else if (lKFA<=22) ks=6;  else if (lKFA<=25) ks=5;
@@ -337,11 +319,9 @@ function calcStats(st) {
 function recalcStats() {
   const newStats = calcStats(state);
   KEYS.forEach(k => {
-    if (k === 'L') return;
-    const old = state.stats[k], nv = newStats[k];
-    if (nv !== old) {
-      addEv(nv > old ? 'level_up' : 'level_down', `${k} → ${nv} ${nv>old?'▲':'▼'} (objektiv)`);
-    }
+    if (k==='L') return;
+    const old=state.stats[k], nv=newStats[k];
+    if (nv!==old) addEv(nv>old?'level_up':'level_down', `${k} → ${nv} ${nv>old?'▲':'▼'} (objektiv)`);
     state.stats[k] = nv;
   });
   saveState();
@@ -358,102 +338,92 @@ function getLvlInfo(totalXP) {
 
 function statXpThresh(statLevel) { return Math.round(200 * Math.pow(statLevel, 1.25)); }
 
-// EGYM XP: per-set calculation
 function calcEgymXP(sets, bodyWeight, modeFactor) {
-  // sets = [{kg, wdh, exStat}]
   let total = 0;
-  const statXP = {S:0, A:0, E:0};
-  const bw = parseFloat(bodyWeight) || 100;
+  const statXP = {};
+  const bw = parseFloat(bodyWeight)||107.4;
   for (const set of sets) {
-    const kg = parseFloat(set.kg)||0;
-    const wdh = parseFloat(set.wdh)||0;
-    const xp = (kg/bw) * wdh * (parseFloat(modeFactor)||1.0) * VET;
+    const kg=parseFloat(set.kg)||0, wdh=parseFloat(set.wdh)||0;
+    const xp = (kg/bw)*wdh*(parseFloat(modeFactor)||1.0)*VET;
     total += xp;
     statXP[set.stat] = (statXP[set.stat]||0) + xp;
   }
-  return {total: Math.round(total*10)/10, statXP};
+  return {total:Math.round(total*10)/10, statXP};
 }
 
-// EGYM Score: raw sum kg×wdh all sets (no mode factor)
 function calcEgymScore(exData) {
-  // exData = {exId: [{kg, wdh}]}
   let score = 0;
   for (const ex of EGYM_EX) {
-    const sets = exData[ex.id] || [];
-    for (const set of sets) {
-      score += (parseFloat(set.kg)||0) * (parseFloat(set.wdh)||0);
-    }
+    const sets = (exData||{})[ex.id]||[];
+    for (const set of sets) score += (parseFloat(set.kg)||0)*(parseFloat(set.wdh)||0);
   }
   return Math.round(score);
 }
 
 function calcSeilXP(dauer, rpm) {
-  const base = parseFloat(dauer||0) * (parseFloat(rpm||0)/100) * 5;
-  const boosted = base * VET;
-  return {
-    total: Math.round(boosted*10)/10,
-    statXP: {E: Math.round(boosted*0.6*10)/10, A: Math.round(boosted*0.4*10)/10}
-  };
+  const base = parseFloat(dauer||0)*(parseFloat(rpm||0)/100)*5;
+  const boosted = base*VET;
+  return {total:Math.round(boosted*10)/10, statXP:{E:Math.round(boosted*0.6*10)/10, A:Math.round(boosted*0.4*10)/10}};
 }
 
-function calcBikeXP(distanz, belastung) {
-  const base = parseFloat(distanz||0) * (parseFloat(belastung||0)/10);
-  const boosted = base * VET;
-  return {
-    total: Math.round(boosted*10)/10,
-    statXP: {E: Math.round(boosted*0.6*10)/10, A: Math.round(boosted*0.4*10)/10}
-  };
+function calcBikeXP(distanz, avgSpeed) {
+  const base = parseFloat(distanz||0)*(parseFloat(avgSpeed||0)/10);
+  const boosted = base*VET;
+  return {total:Math.round(boosted*10)/10, statXP:{E:Math.round(boosted*0.6*10)/10, A:Math.round(boosted*0.4*10)/10}};
 }
 
-function calcErgoXP(dauer) {
-  const base = parseFloat(dauer||0) * 0.8;
-  const boosted = base * VET;
-  return {
-    total: Math.round(boosted*10)/10,
-    statXP: {E: Math.round(boosted*0.7*10)/10, A: Math.round(boosted*0.3*10)/10}
-  };
+function calcErgoXP(distanz, avgSpeed) {
+  const base = parseFloat(distanz||0)*(parseFloat(avgSpeed||0)/10)||parseFloat(distanz||0)*0.8;
+  const boosted = base*VET;
+  return {total:Math.round(boosted*10)/10, statXP:{E:Math.round(boosted*0.7*10)/10, A:Math.round(boosted*0.3*10)/10}};
 }
 
 function calcSleepXP(sleepScore) {
-  return Math.round(parseFloat(sleepScore||0) * 0.5 * VET * 10) / 10;
+  return Math.round(parseFloat(sleepScore||0)*0.5*VET*10)/10;
 }
 
 function applyXP(xpResult) {
   state.globalXP = (state.globalXP||0) + xpResult.total;
   if (!state.statTrainXP) state.statTrainXP = {S:0,P:0,E:0,C:0,I:0,A:0,L:0};
-  Object.entries(xpResult.statXP).forEach(([k,xp]) => {
+  Object.entries(xpResult.statXP||{}).forEach(([k,xp]) => {
     if (!xp) return;
-    if (state.stats[k] >= 10) {
+    if ((state.stats[k]||1) >= 10) {
       if (!state.mastery) state.mastery = {};
       state.mastery[k] = (state.mastery[k]||0) + xp;
       const ml = Math.floor((state.mastery[k]||0)/500);
       if (!state.masteryLevel) state.masteryLevel = {};
       if (ml > (state.masteryLevel[k]||0)) {
         state.masteryLevel[k] = ml;
-        addEv('mastery', `${k} MASTERY +${ml} ★ OVERCHARGE`);
+        addEv('mastery', `${k} MASTERY +${ml} OVERCHARGE`);
       }
-      state.statTrainXP[k] = 0;
     } else {
       state.statTrainXP[k] = (state.statTrainXP[k]||0) + xp;
-      const thresh = statXpThresh(state.stats[k]);
-      if (state.statTrainXP[k] >= thresh) {
-        state.statTrainXP[k] = 0;
-        addEv('training', `TRN XP VOLL: ${k} Balken zurückgesetzt.`);
-      }
     }
   });
 }
 
-// ---- PENALTY ----
+function subtractXP(xpResult) {
+  // Exact reversal of applyXP for delete operations
+  state.globalXP = Math.max(0, (state.globalXP||0) - xpResult.total);
+  Object.entries(xpResult.statXP||{}).forEach(([k,xp]) => {
+    if (!xp) return;
+    state.statTrainXP[k] = Math.max(0, (state.statTrainXP[k]||0) - xp);
+  });
+}
+
+// ---- PENALTY (ANKER-FIX) ----
 function checkPenalty() {
-  if (state.pause?.active) return {days:0, active:false};
+  if (state.pause && state.pause.active) return {days:0, active:false};
+  // Filter out anchor entry (note === 'ANKER-DATEN')
+  const nonAnchorCheckins = (state.checkins||[]).filter(c => c.note !== 'ANKER-DATEN');
   const allDates = [
-    ...state.checkins.map(c=>c.date),
-    ...state.trainings.map(t=>t.date)
+    ...nonAnchorCheckins.map(c=>c.date),
+    ...(state.trainings||[]).map(t=>t.date)
   ];
   if (!allDates.length) return {days:0, active:false};
   const latest = allDates.reduce((a,b) => {
     const da=parseDE(a), db=parseDE(b);
+    if (!da) return b; if (!db) return a;
     return da > db ? a : b;
   });
   const days = daysBetween(latest, today());
@@ -461,118 +431,103 @@ function checkPenalty() {
     state.lastPenaltyDate = today();
     const pen = [];
     KEYS.forEach(k => {
-      if (!STAT_DEFS[k].anchor && state.stats[k] > 1) {
-        state.stats[k] = Math.max(1, state.stats[k]-1);
+      if (!STAT_DEFS[k].anchor && (state.stats[k]||1) > 1) {
+        state.stats[k] = Math.max(1, (state.stats[k]||1)-1);
         pen.push(k);
       }
     });
-    if (pen.length) {
-      addEv('penalty', `⚠ PANZER ROSTET: ${days}d inaktiv. Abzug: ${pen.join(',')} -1`);
-      saveState();
-    }
+    if (pen.length) { addEv('penalty', `PANZER ROSTET: ${days}d inaktiv. Abzug: ${pen.join(',')}`); saveState(); }
     return {days, active:true};
   }
   return {days, active: days>=4};
 }
 
-// ---- PROCESS CHECKIN ----
+// ---- CHECKIN ----
 function processCheckin(f) {
   if (f.taille && f.huefte && parseFloat(f.taille)>0 && parseFloat(f.huefte)>0)
     f.whr = (parseFloat(f.taille)/parseFloat(f.huefte)).toFixed(3);
   if (f.sleepScore && parseFloat(f.sleepScore)>0) {
     const sxp = calcSleepXP(f.sleepScore);
-    state.globalXP = (state.globalXP||0) + sxp;
-    state.statTrainXP.P = (state.statTrainXP.P||0) + sxp;
+    state.globalXP = (state.globalXP||0)+sxp;
+    state.statTrainXP.P = (state.statTrainXP.P||0)+sxp;
     f.sleepXP = sxp;
   }
   state.checkins.push({date:today(), ...f});
   addEv('checkin', `CHECK-IN: ${f.weight}kg · VF${f.visceral}${f.whr?' · WHR:'+f.whr:''}${f.sleepScore?' · Score:'+f.sleepScore:''}`);
   recalcStats();
-  saveState();
 }
 
-// ---- PROCESS EGYM ----
+// ---- EGYM ----
 function processEgym(exData, modeId) {
-  const modeObj = EGYM_MODES.find(m=>m.id===modeId) || EGYM_MODES[3];
-  const _lastCI = state.checkins && state.checkins.length ? state.checkins.findLast(c=>c&&c.weight) : null;
-  const bw = _lastCI ? parseFloat(_lastCI.weight) : 107.4;
+  const modeObj = EGYM_MODES.find(m=>m.id===modeId)||EGYM_MODES[3];
+  const lastCI = (state.checkins&&state.checkins.length) ? state.checkins.findLast(c=>c&&c.weight) : null;
+  const bw = lastCI ? parseFloat(lastCI.weight) : 107.4;
   const score = calcEgymScore(exData);
-
-  // Build sets array for XP calculation
   const sets = [];
   for (const ex of EGYM_EX) {
-    const exSets = exData[ex.id] || [];
-    for (const set of exSets) {
-      if ((parseFloat(set.kg)||0) > 0 && (parseFloat(set.wdh)||0) > 0) {
+    ((exData||{})[ex.id]||[]).forEach(set => {
+      if ((parseFloat(set.kg)||0)>0 && (parseFloat(set.wdh)||0)>0)
         sets.push({kg:set.kg, wdh:set.wdh, stat:ex.stat});
-      }
-    }
+    });
   }
   const xpResult = calcEgymXP(sets, bw, modeObj.factor);
-
-  const prev = state.trainings.filter(t=>t.type==='egym');
-  const ps = prev.length > 0 ? prev[prev.length-1].score : 0;
-
-  state.trainings.push({
-    type:'egym', date:today(),
-    score, modeId:modeObj.id, modeFactor:modeObj.factor,
-    sessionXP:xpResult.total, exData
-  });
+  // Store statXP breakdown for exact XP reversal on delete
+  const statXPSnapshot = {...xpResult.statXP};
+  state.trainings.push({type:'egym', date:today(), score, modeId:modeObj.id, modeFactor:modeObj.factor, sessionXP:xpResult.total, statXP:statXPSnapshot, exData});
   applyXP(xpResult);
-  addEv('training', `EGYM [${modeObj.name}]: Score ${score} · +${xpResult.total} XP${score>ps?' ▲':score<ps?' ▼':''}`);
+  addEv('training', `EGYM [${modeObj.name}]: Score ${score} · +${xpResult.total} XP`);
   recalcStats();
-  saveState();
 }
 
-// ---- PROCESS SEIL ----
+// ---- SEIL ----
 function processSeil(f) {
+  // RPM calculated from jumps + seconds
+  const jumps = parseInt(f.jumps||0,10);
+  const secs = parseFloat(f.seconds||0);
+  const rpm = secs > 0 ? Math.round((jumps/secs)*60) : 0;
   const dauer = parseMinSek(f.dauer);
-  const xpResult = calcSeilXP(dauer, f.rpm);
-  // Same day: accumulate
-  const todayIdx = state.trainings.findIndex(t => t.type==='seil' && t.date===today());
+  const xpResult = calcSeilXP(dauer, rpm);
+  const todayIdx = state.trainings.findIndex(t=>t.type==='seil'&&t.date===today());
   if (todayIdx >= 0) {
     const ex = state.trainings[todayIdx];
-    const newDauer = parseFloat(ex.dauer||0) + dauer;
-    const newRunden = parseInt(ex.runden||0,10) + parseInt(f.runden||0,10);
-    const newRPM = newDauer > 0
-      ? (parseFloat(ex.rpm||0)*parseFloat(ex.dauer||0) + parseFloat(f.rpm||0)*dauer) / newDauer
-      : parseFloat(ex.rpm||f.rpm||0);
+    const newDauer = parseFloat(ex.dauer||0)+dauer;
+    const newRunden = parseInt(ex.runden||0,10)+parseInt(f.runden||0,10);
+    const newRPM = newDauer>0 ? (parseFloat(ex.rpm||0)*parseFloat(ex.dauer||0)+rpm*dauer)/newDauer : rpm;
     const combined = calcSeilXP(newDauer, newRPM);
-    const xpDelta = combined.total - (ex.sessionXP||0);
-    applyXP({total: Math.max(0,xpDelta), statXP: {
-      E: Math.max(0,(combined.statXP.E||0)-(xpResult.statXP.E||0)),
-      A: Math.max(0,(combined.statXP.A||0)-(xpResult.statXP.A||0))
-    }});
-    state.trainings[todayIdx] = {...ex, dauer:newDauer, rpm:Math.round(newRPM), runden:newRunden, sessionXP:combined.total};
-    addEv('training', `SEIL +: ${formatMinSek(newDauer)}min · ${Math.round(newRPM)}RPM · ${newRunden}R`);
+    const delta = Math.max(0, combined.total-(ex.sessionXP||0));
+    applyXP({total:delta, statXP:{E:Math.max(0,(combined.statXP.E||0)-(ex.statXP&&ex.statXP.E||0)), A:Math.max(0,(combined.statXP.A||0)-(ex.statXP&&ex.statXP.A||0))}});
+    state.trainings[todayIdx] = {...ex, dauer:newDauer, rpm:Math.round(newRPM), runden:newRunden, sessionXP:combined.total, statXP:combined.statXP};
+    addEv('training', `SEIL +: ${formatMinSek(newDauer)}min · ${Math.round(newRPM)}RPM`);
   } else {
-    state.trainings.push({type:'seil', date:today(), dauer, rpm:parseFloat(f.rpm||0), runden:parseInt(f.runden||0,10), note:f.note||'', sessionXP:xpResult.total});
+    state.trainings.push({type:'seil', date:today(), dauer, rpm, runden:parseInt(f.runden||0,10), sessionXP:xpResult.total, statXP:xpResult.statXP});
     applyXP(xpResult);
-    addEv('training', `SEIL: ${formatMinSek(dauer)}min · ${f.rpm}RPM · +${xpResult.total} XP`);
+    addEv('training', `SEIL: ${formatMinSek(dauer)}min · ${rpm}RPM · +${xpResult.total} XP`);
   }
   recalcStats();
-  saveState();
 }
 
-// ---- PROCESS BIKE ----
+// ---- BIKE ----
 function processBike(f) {
-  const xpResult = calcBikeXP(f.distanz, f.belastung);
-  state.trainings.push({type:'bike', date:today(), ...f, sessionXP:xpResult.total});
+  const dauer = parseMinSek(f.dauer);
+  const distanz = parseFloat(f.distanz||0);
+  const avgSpeed = dauer > 0 ? Math.round((distanz/(dauer/60))*10)/10 : 0;
+  const xpResult = calcBikeXP(distanz, avgSpeed);
+  state.trainings.push({type:'bike', date:today(), distanz, dauer, avgSpeed, maxSpeed:parseFloat(f.maxSpeed||0), sessionXP:xpResult.total, statXP:xpResult.statXP});
   applyXP(xpResult);
-  addEv('training', `RAD: ${f.distanz}km · ${f.belastung} Belastung · +${xpResult.total} XP`);
+  addEv('training', `RAD: ${distanz}km · ${avgSpeed}km/h Ø · +${xpResult.total} XP`);
   recalcStats();
-  saveState();
 }
 
-// ---- PROCESS ERGO ----
+// ---- ERGO ----
 function processErgo(f) {
   const dauer = parseMinSek(f.dauer);
-  const xpResult = calcErgoXP(dauer);
-  state.trainings.push({type:'ergo', date:today(), ...f, dauer, sessionXP:xpResult.total});
+  const distanz = parseFloat(f.distanz||0);
+  const avgSpeed = dauer > 0 ? Math.round((distanz/(dauer/60))*10)/10 : 0;
+  const xpResult = calcErgoXP(distanz, avgSpeed);
+  state.trainings.push({type:'ergo', date:today(), distanz, dauer, avgSpeed, sessionXP:xpResult.total, statXP:xpResult.statXP});
   applyXP(xpResult);
-  addEv('training', `ERGO: ${formatMinSek(dauer)}min · ${f.puls||'?'} bpm · +${xpResult.total} XP`);
+  addEv('training', `ERGO: ${formatMinSek(dauer)}min · ${distanz?distanz+'km':'--'} · +${xpResult.total} XP`);
   recalcStats();
-  saveState();
 }
 
 // ---- SUPPLEMENTS ----
@@ -583,43 +538,34 @@ function toggleKernSupp(id) {
   recalcAllStreaks();
   addEv('chem', `${state.supplements[d][id]?'✓':'✗'} ${id.toUpperCase()}`);
   recalcStats();
-  saveState();
 }
 
 function toggleKsm() {
-  const ks = getKsmState();
-  if (ks.phase === 'off') return;
   if (!state.ksm.cycleStart) {
     state.ksm.cycleStart = new Date().toISOString();
-    addEv('chem', 'KSM-66 Zyklus gestartet. 56 Tage ON.');
+    addEv('chem','KSM-66 Zyklus gestartet. 56 Tage ON.');
   }
-  const taken = state.ksm.lastTakenDate === today();
-  if (taken) {
-    state.ksm.lastTakenDate = '';
-    addEv('chem', 'KSM-66 ✗ abgehakt');
-  } else {
-    state.ksm.lastTakenDate = today();
-    const ks2 = getKsmState();
-    addEv('chem', `KSM-66 ✓ genommen (Tag ${ks2.dayInPhase}/${KSM_ON})`);
-  }
+  const ks = getKsmState();
+  if (ks.phase==='off') return;
+  const taken = state.ksm.lastTakenDate===today();
+  state.ksm.lastTakenDate = taken ? '' : today();
+  addEv('chem', `${taken?'✗':'✓'} KSM-66 (Tag ${ks.dayInPhase}/${KSM_ON})`);
   saveState();
 }
 
 function startBkomp() {
   localStorage.setItem('panzer_bkur_start', new Date().toISOString());
-  addEv('chem', 'B-Komplex Kur gestartet. 21/14 Protokoll.');
+  addEv('chem','B-Komplex Kur gestartet. 21/14.');
   saveState();
 }
 
 function resetBkomp() {
   if (!confirm('B-Komplex Zyklus zurücksetzen?')) return;
   localStorage.removeItem('panzer_bkur_start');
-  addEv('chem', 'B-Komplex Zyklus zurückgesetzt.');
+  addEv('chem','B-Komplex Zyklus zurückgesetzt.');
   saveState();
 }
 
-// Daily optional supps (non-kern, non-kur)
-const DAILY_OPT_KEY = 'panzer_daily_opt';
 function loadDailyOpt() {
   try {
     const raw = localStorage.getItem(DAILY_OPT_KEY);
@@ -628,6 +574,7 @@ function loadDailyOpt() {
     return data;
   } catch(e) { return {date:today(), checked:{}}; }
 }
+
 function saveDailyOpt(d) { try { localStorage.setItem(DAILY_OPT_KEY, JSON.stringify(d)); } catch(e) {} }
 
 function toggleOptSupp(id) {
@@ -647,16 +594,16 @@ function startPause(reason) {
 function endPause() {
   state.pause = {active:false, reason:'', startDate:''};
   state.lastPenaltyDate = today();
-  addEv('system', 'Pause beendet. Kein sofortiger Penalty.');
+  addEv('system','Pause beendet.');
   saveState();
 }
 
 // ---- EXPORT / IMPORT ----
 function exportData() {
   const exp = JSON.parse(JSON.stringify(state));
-  exp._bkurStart = localStorage.getItem('panzer_bkur_start') || null;
-  exp._dailyOpt = localStorage.getItem(DAILY_OPT_KEY) || null;
-  const b = new Blob([JSON.stringify(exp, null, 2)], {type:'application/json'});
+  exp._bkurStart = localStorage.getItem('panzer_bkur_start')||null;
+  exp._dailyOpt = localStorage.getItem(DAILY_OPT_KEY)||null;
+  const b = new Blob([JSON.stringify(exp,null,2)], {type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(b);
   a.download = `wasteland-panzer-v3-${today().replace(/\./g,'-')}.json`;
@@ -673,14 +620,12 @@ function importData(file, onDone) {
         if (imp._dailyOpt) localStorage.setItem(DAILY_OPT_KEY, imp._dailyOpt);
         if (imp._ksmStart && imp.ksm) imp.ksm.cycleStart = imp._ksmStart;
         delete imp._bkurStart; delete imp._ksmStart; delete imp._dailyOpt;
-        // Ensure all fields
-        if (!imp.pause) imp.pause = {active:false, reason:'', startDate:''};
+        if (!imp.pause) imp.pause = {active:false,reason:'',startDate:''};
         if (!imp.questState) imp.questState = {};
-        if (!imp.ksm) imp.ksm = {cycleStart:null, lastTakenDate:''};
+        if (!imp.ksm) imp.ksm = {cycleStart:null,lastTakenDate:''};
+        if (!Array.isArray(imp.trainings)) imp.trainings = [];
         Object.assign(state, imp);
-        if (!Array.isArray(state.trainings)) state.trainings = [];
-        recalcAllStreaks();
-        recalcStats();
+        recalcAllStreaks(); recalcStats();
         saveState();
         if (onDone) onDone(true);
       } else { if (onDone) onDone(false); }
@@ -689,24 +634,21 @@ function importData(file, onDone) {
   r.readAsText(file);
 }
 
-// ---- MIGRATE & INIT ----
 function migrateAndInit() {
-  if (!state.globalXP && state.globalXP!==0) state.globalXP = 0;
-  if (!state.statTrainXP) state.statTrainXP = {S:0,P:0,E:0,C:0,I:0,A:0,L:0};
   if (!state.mastery) state.mastery = {};
   if (!state.masteryLevel) state.masteryLevel = {};
-  // Migrate old exData format (flat fields -> exData object)
   state.trainings.forEach(t => {
     if (t.type==='egym' && !t.exData) {
       const exData = {};
       EGYM_EX.forEach(ex => {
-        const kg = t[ex.id+'_kg'], wdh = t[ex.id+'_wdh'];
-        if (kg || wdh) exData[ex.id] = [{kg:kg||0, wdh:wdh||0}];
+        const kg=t[ex.id+'_kg'], wdh=t[ex.id+'_wdh'];
+        if (kg||wdh) exData[ex.id] = [{kg:kg||0,wdh:wdh||0}];
       });
       t.exData = exData;
-      // Recalc score
       t.score = calcEgymScore(exData);
     }
+    // Ensure statXP snapshot exists for delete reversal
+    if (!t.statXP) t.statXP = {};
   });
   recalcAllStreaks();
   recalcStats();
@@ -1136,99 +1078,82 @@ function validateCheckin(f) {
 }
 
 document.querySelector('style').textContent = SHARED_CSS;
-
-// ---- TRAINING PAGE ----
-let modal = null;
-let exSetsState = {}; // {exId: [{kg, wdh}]}
+// ---- TRAINING PAGE v3.2 ----
+var modal = null;
+var exSetsState = {};
 
 function render() {
-  const root = document.getElementById('root');
-  const gLvl = getLvlInfo(state.globalXP);
-  const gPct = Math.round((gLvl.currentXP/gLvl.neededXP)*100);
-  const penSt = checkPenalty();
+  var root = document.getElementById('root');
+  var gLvl = getLvlInfo(state.globalXP);
+  var gPct = Math.round((gLvl.currentXP/gLvl.neededXP)*100);
+  var penSt = checkPenalty();
 
-  let h = renderHeader('training.html');
-  if (penSt.active) h += `<div class="penalty-bar">⚠ PANZER ROSTET — ${penSt.days} TAGE INAKTIV</div>`;
-
+  var h = renderHeader('training.html');
+  if (penSt.active) h += '<div class="penalty-bar">PANZER ROSTET — ' + penSt.days + ' TAGE INAKTIV</div>';
   h += '<div class="scroll"><div class="pad">';
 
   // GLOBAL LEVEL
-  h += `<div class="card card-amber">
-    <div class="card-title amber">⚡ GLOBAL LEVEL</div>
-    <div class="big-num amber">${gLvl.level}</div>
-    <div style="font-size:9px;color:var(--gdim);margin-top:2px">${gLvl.currentXP} / ${gLvl.neededXP} XP bis Level ${gLvl.level+1}</div>
-    <div style="height:5px;background:var(--g1);border:1px solid #332200;margin-top:5px;overflow:hidden">
-      <div style="height:100%;width:${gPct}%;background:linear-gradient(90deg,var(--amber),#ffcc44);box-shadow:0 0 5px var(--amber)"></div>
-    </div>
-    <div style="font-size:8px;color:#443300;margin-top:3px">Gesamt XP: ${Math.round(state.globalXP||0)} · Veteran ×${VET.toFixed(2)}</div>
-  </div>`;
+  h += '<div class="card card-amber"><div class="card-title amber">GLOBAL LEVEL</div>';
+  h += '<div class="big-num amber">' + gLvl.level + '</div>';
+  h += '<div style="font-size:9px;color:var(--gdim);margin-top:2px">' + gLvl.currentXP + ' / ' + gLvl.neededXP + ' XP · Veteran x' + VET.toFixed(2) + '</div>';
+  h += '<div style="height:5px;background:var(--g1);border:1px solid #332200;margin-top:5px;overflow:hidden"><div style="height:100%;width:' + gPct + '%;background:linear-gradient(90deg,var(--amber),#ffcc44)"></div></div></div>';
 
   // EGYM
-  const egymS = state.trainings.filter(t=>t.type==='egym');
-  const lEgym = egymS.length>0 ? egymS[egymS.length-1] : null;
-  h += '<div class="card"><div class="card-title">⬡ EGYM · LETZTER SCORE</div>';
+  var egymS = state.trainings.filter(function(t){return t.type==='egym';});
+  var lEgym = egymS.length>0 ? egymS[egymS.length-1] : null;
+  h += '<div class="card"><div class="card-title">EGYM · LETZTER SCORE</div>';
   if (lEgym) {
-    const prevE = egymS.length>1 ? egymS[egymS.length-2] : null;
-    const ediff = prevE ? lEgym.score - prevE.score : null;
-    h += `<div class="big-num">${lEgym.score}</div>`;
-    if (ediff!==null) h += `<div style="font-size:9px;color:${ediff>=0?'var(--glow)':'var(--red)'};margin-top:1px">${ediff>=0?'+':''}${Math.round(ediff)} vs. Vorherige</div>`;
-    h += `<div style="font-size:8px;color:var(--gdim);margin-top:2px">${lEgym.date} · ${lEgym.modeId} · ${lEgym.sessionXP} XP</div>`;
-    // Show exercises from exData
+    var prevE = egymS.length>1 ? egymS[egymS.length-2] : null;
+    var ediff = prevE ? lEgym.score - prevE.score : null;
+    h += '<div class="big-num">' + lEgym.score + '</div>';
+    if (ediff!==null) h += '<div style="font-size:9px;color:' + (ediff>=0?'var(--glow)':'var(--red)') + '">' + (ediff>=0?'+':'') + Math.round(ediff) + ' vs. Vorherige</div>';
+    h += '<div style="font-size:8px;color:var(--gdim);margin-top:2px">' + lEgym.date + ' · ' + lEgym.modeId + ' · ' + lEgym.sessionXP + ' XP</div>';
     if (lEgym.exData) {
       h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:1px 8px;margin-top:6px;font-size:8px">';
-      EGYM_EX.forEach(ex => {
-        const sets = lEgym.exData[ex.id] || [];
-        if (sets.length) {
-          const setStr = sets.map((s,i) => `S${i+1}:${s.kg}×${s.wdh}`).join(' ');
-          h += `<div style="color:var(--gdim)">${ex.name}</div><div style="color:var(--text)">${setStr}</div>`;
-        }
+      EGYM_EX.forEach(function(ex) {
+        var sets = lEgym.exData[ex.id]||[];
+        if (sets.length) h += '<div style="color:var(--gdim)">' + ex.name + '</div><div style="color:var(--text)">' + sets.map(function(s,i){return 'S'+(i+1)+':'+s.kg+'x'+s.wdh;}).join(' ') + '</div>';
       });
       h += '</div>';
     }
-  } else h += '<div style="color:var(--gdim);font-size:9px;margin-top:3px">Noch keine Session.</div>';
+  } else h += '<div style="color:var(--gdim);font-size:9px">Noch keine Session.</div>';
   h += '</div>';
 
   // SEIL
-  const seilS = state.trainings.filter(t=>t.type==='seil');
-  const lSeil = seilS.length>0 ? seilS[seilS.length-1] : null;
-  const todaySeil = seilS.find(t=>t.date===today());
-  h += '<div class="card card-blue"><div class="card-title blue">⬡ SEIL · LETZTE SESSION</div>';
+  var seilS = state.trainings.filter(function(t){return t.type==='seil';});
+  var lSeil = seilS.length>0 ? seilS[seilS.length-1] : null;
+  h += '<div class="card card-blue"><div class="card-title blue">SEIL · LETZTE SESSION</div>';
   if (lSeil) {
-    const tDauer = seilS.reduce((s,t)=>s+parseFloat(t.dauer||0),0);
-    const tRunden = seilS.reduce((s,t)=>s+parseInt(t.runden||0,10),0);
-    const tXP = seilS.reduce((s,t)=>s+parseFloat(t.sessionXP||0),0);
-    h += `<div class="big-num blue">${lSeil.rpm||'?'} RPM</div>`;
-    h += `<div style="font-size:9px;color:var(--gdim);margin-top:2px">${formatMinSek(lSeil.dauer||0)}min · ${lSeil.runden||'?'} Runden · ${lSeil.sessionXP} XP · ${lSeil.date}</div>`;
-    if (seilS.length>1) h += `<div style="font-size:8px;color:var(--gdim);margin-top:3px;border-top:1px solid var(--g2);padding-top:3px">Gesamt heute: ${formatMinSek(tDauer)}min · ${tRunden}R · ${Math.round(tXP)}XP</div>`;
-  } else h += '<div style="color:var(--gdim);font-size:9px;margin-top:3px">Noch keine Session.</div>';
+    h += '<div class="big-num blue">' + (lSeil.rpm||'?') + ' RPM</div>';
+    h += '<div style="font-size:9px;color:var(--gdim);margin-top:2px">' + formatMinSek(lSeil.dauer||0) + 'min · ' + (lSeil.runden||'?') + ' Runden · ' + lSeil.sessionXP + ' XP · ' + lSeil.date + '</div>';
+  } else h += '<div style="color:var(--gdim);font-size:9px">Noch keine Session.</div>';
   h += '</div>';
 
-  // BIKE
-  const bikeS = state.trainings.filter(t=>t.type==='bike');
-  const lBike = bikeS.length>0 ? bikeS[bikeS.length-1] : null;
-  h += '<div class="card card-cyan"><div class="card-title cyan">⬡ RAD · LETZTE SESSION</div>';
+  // RAD
+  var bikeS = state.trainings.filter(function(t){return t.type==='bike';});
+  var lBike = bikeS.length>0 ? bikeS[bikeS.length-1] : null;
+  h += '<div class="card card-cyan"><div class="card-title cyan">RAD · LETZTE SESSION</div>';
   if (lBike) {
-    h += `<div class="big-num" style="color:var(--cyan)">${lBike.distanz||'?'} km</div>`;
-    h += `<div style="font-size:9px;color:var(--gdim);margin-top:2px">${formatMinSek(lBike.dauer||0)}min · ${lBike.avgSpeed||'?'}km/h · ${lBike.belastung||'?'} Belastung</div>`;
-    h += `<div style="font-size:8px;color:var(--gdim)">${lBike.sessionXP} XP · ${lBike.date}</div>`;
-  } else h += '<div style="color:var(--gdim);font-size:9px;margin-top:3px">Noch keine Session.</div>';
+    h += '<div class="big-num" style="color:var(--cyan)">' + (lBike.distanz||'?') + ' km</div>';
+    h += '<div style="font-size:9px;color:var(--gdim);margin-top:2px">' + formatMinSek(lBike.dauer||0) + 'min · ' + (lBike.avgSpeed||'?') + 'km/h Ø · ' + (lBike.maxSpeed?'Max '+lBike.maxSpeed+'km/h':'') + '</div>';
+    h += '<div style="font-size:8px;color:var(--gdim)">' + lBike.sessionXP + ' XP · ' + lBike.date + '</div>';
+  } else h += '<div style="color:var(--gdim);font-size:9px">Noch keine Session.</div>';
   h += '</div>';
 
   // ERGO
-  const ergoS = state.trainings.filter(t=>t.type==='ergo');
-  const lErgo = ergoS.length>0 ? ergoS[ergoS.length-1] : null;
-  h += '<div class="card" style="border-color:#336633"><div class="card-title" style="color:#66cc66">⬡ ERGOMETER · LETZTE SESSION</div>';
+  var ergoS = state.trainings.filter(function(t){return t.type==='ergo';});
+  var lErgo = ergoS.length>0 ? ergoS[ergoS.length-1] : null;
+  h += '<div class="card" style="border-color:#336633"><div class="card-title" style="color:#66cc66">ERGOMETER · LETZTE SESSION</div>';
   if (lErgo) {
-    h += `<div class="big-num" style="color:#66cc66">${formatMinSek(lErgo.dauer||0)} min</div>`;
-    h += `<div style="font-size:9px;color:var(--gdim);margin-top:2px">${lErgo.puls||'?'} bpm · ${lErgo.km?lErgo.km+'km':'--'} · ${lErgo.sessionXP} XP · ${lErgo.date}</div>`;
-  } else h += '<div style="color:var(--gdim);font-size:9px;margin-top:3px">Noch keine Session.</div>';
+    h += '<div class="big-num" style="color:#66cc66">' + formatMinSek(lErgo.dauer||0) + ' min</div>';
+    h += '<div style="font-size:9px;color:var(--gdim);margin-top:2px">' + (lErgo.distanz?lErgo.distanz+'km · ':'') + (lErgo.avgSpeed?lErgo.avgSpeed+'km/h Ø · ':'') + lErgo.sessionXP + ' XP · ' + lErgo.date + '</div>';
+  } else h += '<div style="color:var(--gdim);font-size:9px">Noch keine Session.</div>';
   h += '</div>';
 
-  h += `<button class="btn" onclick="openModal('egym')">🏋 EGYM SESSION EINTRAGEN</button>`;
-  h += `<button class="btn blue" onclick="openModal('seil')">🪢 SEIL SESSION EINTRAGEN</button>`;
-  h += `<button class="btn cyan" onclick="openModal('bike')">🚴 RAD SESSION EINTRAGEN</button>`;
-  h += `<button class="btn" style="border-color:#336633;color:#66cc66" onclick="openModal('ergo')">🚲 ERGOMETER SESSION</button>`;
-
+  h += '<button class="btn" onclick="openModal(\'egym\')">EGYM SESSION</button>';
+  h += '<button class="btn blue" onclick="openModal(\'seil\')">SEIL SESSION</button>';
+  h += '<button class="btn cyan" onclick="openModal(\'bike\')">RAD SESSION</button>';
+  h += '<button class="btn" style="border-color:#336633;color:#66cc66" onclick="openModal(\'ergo\')">ERGOMETER SESSION</button>';
   h += '</div></div>';
   root.innerHTML = h;
   if (modal) renderModal();
@@ -1237,101 +1162,73 @@ function render() {
 function openModal(m) {
   modal = m;
   if (m==='egym') {
-    // Init exSets with 3 sets per exercise
     exSetsState = {};
-    EGYM_EX.forEach(ex => { exSetsState[ex.id] = [{kg:'',wdh:''},{kg:'',wdh:''},{kg:'',wdh:''}]; });
+    EGYM_EX.forEach(function(ex){ exSetsState[ex.id] = [{kg:'',wdh:''},{kg:'',wdh:''},{kg:'',wdh:''}]; });
   }
   render();
   renderModal();
 }
 
-function closeModal() {
-  modal = null;
-  const m = document.getElementById('pp-modal');
-  if(m) m.remove();
-}
+function closeModal() { modal=null; var m=document.getElementById('pp-modal'); if(m) m.remove(); }
 
 function renderModal() {
-  const old = document.getElementById('pp-modal');
+  var old = document.getElementById('pp-modal');
   if(old) old.remove();
   if (!modal) return;
-
-  let h = '<div class="modal-overlay" id="pp-modal"><div class="modal">';
+  var h = '<div class="modal-overlay" id="pp-modal"><div class="modal">';
 
   if (modal==='egym') {
-    h += '<div class="modal-title">🏋 EGYM SESSION</div>';
-    h += '<div class="modal-sub">MODUS (XP) · KG + WDH PRO SATZ</div>';
-    h += '<div class="f-wrap"><div class="f-lbl">TRAININGS-MODUS (beeinflusst XP, nicht Score)</div>';
-    h += '<select class="f-in" id="egym_mode" onchange="updateEgymPreview()">';
-    EGYM_MODES.forEach(m => {
-      h += `<option value="${m.id}"${m.id==='isokinetisch'?' selected':''}>${m.name} (×${m.factor})</option>`;
-    });
+    h += '<div class="modal-title">EGYM SESSION</div><div class="modal-sub">KG + WDH PRO SATZ · MODUS = XP-FAKTOR</div>';
+    h += '<div class="f-wrap"><div class="f-lbl">TRAININGS-MODUS</div><select class="f-in" id="egym_mode" onchange="updateEgymPreview()">';
+    EGYM_MODES.forEach(function(m){ h += '<option value="' + m.id + '"' + (m.id==='isokinetisch'?' selected':'') + '>' + m.name + ' (x' + m.factor + ')</option>'; });
     h += '</select></div>';
-
-    EGYM_EX.forEach(ex => {
-      const sets = exSetsState[ex.id] || [];
-      h += `<div class="ex-section">
-        <div class="ex-name">${ex.name} <span style="font-size:7px;color:var(--gdim)">[${ex.stat}]</span></div>
-        <div class="ex-sets" id="sets_${ex.id}">`;
-      sets.forEach((set,i) => {
-        h += `<div class="ex-set-row">
-          <div class="ex-set-num">S${i+1}</div>
-          <input class="f-in" placeholder="kg" inputmode="decimal" style="text-align:center"
-            value="${set.kg}" oninput="updateSet('${ex.id}',${i},'kg',this.value);updateEgymPreview()">
-          <input class="f-in" placeholder="Wdh" inputmode="decimal" style="text-align:center"
-            value="${set.wdh}" oninput="updateSet('${ex.id}',${i},'wdh',this.value);updateEgymPreview()">
-          <div class="ex-set-del" onclick="removeSet('${ex.id}',${i})">✕</div>
-        </div>`;
+    EGYM_EX.forEach(function(ex) {
+      var sets = exSetsState[ex.id]||[];
+      h += '<div class="ex-section"><div class="ex-name">' + ex.name + ' <span style="font-size:7px;color:var(--gdim)">[' + ex.stat + ']</span></div><div class="ex-sets" id="sets_' + ex.id + '">';
+      sets.forEach(function(set,i) {
+        h += '<div class="ex-set-row"><div class="ex-set-num">S' + (i+1) + '</div>';
+        h += '<input class="f-in" placeholder="kg" inputmode="decimal" style="text-align:center" value="' + (set.kg||'') + '" oninput="updateSet(\'' + ex.id + '\',' + i + ',\'kg\',this.value);updateEgymPreview()">';
+        h += '<input class="f-in" placeholder="Wdh" inputmode="decimal" style="text-align:center" value="' + (set.wdh||'') + '" oninput="updateSet(\'' + ex.id + '\',' + i + ',\'wdh\',this.value);updateEgymPreview()">';
+        h += '<div class="ex-set-del" onclick="removeSet(\'' + ex.id + '\',' + i + ')">x</div></div>';
       });
-      h += `</div>
-        <button class="add-set-btn" onclick="addSet('${ex.id}')">+ Satz hinzufügen</button>
-      </div>`;
+      h += '</div><button class="add-set-btn" onclick="addSet(\'' + ex.id + '\')">+ Satz</button></div>';
     });
-
-    h += `<div class="score-prev">
-      <div class="score-prev-val" id="sp_score">0</div>
-      <div class="score-prev-xp" id="sp_xp">0.0 XP</div>
-      <div class="score-prev-lbl">RAW SCORE · SESSION XP</div>
-    </div>`;
+    h += '<div class="score-prev"><div class="score-prev-val" id="sp_score">0</div><div class="score-prev-xp" id="sp_xp">0.0 XP</div><div class="score-prev-lbl">RAW SCORE · SESSION XP</div></div>';
     h += '<div class="mactions"><button class="btn" onclick="saveEgym()">SPEICHERN</button><button class="btn red" onclick="closeModal()">ABBRUCH</button></div>';
   }
 
   if (modal==='seil') {
-    h += '<div class="modal-title">🪢 SEIL SESSION</div><div class="modal-sub">GLEICHER TAG = AKKUMULIERT</div>';
+    h += '<div class="modal-title">SEIL SESSION</div><div class="modal-sub">RPM WIRD AUTOMATISCH BERECHNET</div>';
     h += '<div class="f-g2">';
-    [['seil_dauer','Dauer (min:sek)','15:00'],['seil_rpm','RPM','90']].forEach(([id,lbl,ph]) => {
-      h += `<div class="f-wrap"><div class="f-lbl">${lbl}</div><input class="f-in" id="${id}" placeholder="${ph}" inputmode="${id==='seil_rpm'?'decimal':'text'}"></div>`;
-    });
-    h += '</div><div class="f-g2">';
-    [['seil_runden','Runden','8'],['seil_note','Notiz','']].forEach(([id,lbl,ph]) => {
-      h += `<div class="f-wrap"><div class="f-lbl">${lbl}</div><input class="f-in" id="${id}" placeholder="${ph}" inputmode="${id==='seil_note'?'text':'decimal'}"></div>`;
-    });
+    h += '<div class="f-wrap"><div class="f-lbl">Dauer (min:sek)</div><input class="f-in" id="seil_dauer" placeholder="15:00" inputmode="text"></div>';
+    h += '<div class="f-wrap"><div class="f-lbl">Runden</div><input class="f-in" id="seil_runden" placeholder="8" inputmode="decimal"></div>';
     h += '</div>';
+    h += '<div class="f-g2">';
+    h += '<div class="f-wrap"><div class="f-lbl">Sprünge (in Messintervall)</div><input class="f-in" id="seil_jumps" placeholder="18" inputmode="decimal" oninput="updateRpmPreview()"></div>';
+    h += '<div class="f-wrap"><div class="f-lbl">Sekunden (Messintervall)</div><input class="f-in" id="seil_secs" placeholder="10" inputmode="decimal" oninput="updateRpmPreview()"></div>';
+    h += '</div>';
+    h += '<div style="background:var(--g0);border:1px solid var(--gdim);padding:8px;text-align:center;margin:6px 0"><div style="font-family:var(--fontd);font-size:20px;color:var(--blue)" id="rpm_preview">-- RPM</div><div style="font-size:7px;color:var(--gdim)">Sprünge / Sekunden × 60</div></div>';
     h += '<div class="mactions"><button class="btn blue" onclick="saveSeil()">SPEICHERN</button><button class="btn red" onclick="closeModal()">ABBRUCH</button></div>';
   }
 
   if (modal==='bike') {
-    h += '<div class="modal-title">🚴 RAD SESSION</div><div class="modal-sub">AMAZFIT T-REX 3 DATEN</div>';
+    h += '<div class="modal-title">RAD SESSION</div><div class="modal-sub">AVG SPEED WIRD AUTOMATISCH BERECHNET</div>';
     h += '<div class="f-g2">';
-    [['bike_distanz','Distanz (km)','1.58'],['bike_dauer','Dauer (min:sek)','10:00'],
-     ['bike_avgSpeed','Ø Speed (km/h)','9.49'],['bike_maxSpeed','Max Speed (km/h)','21.05']].forEach(([id,lbl,ph]) => {
-      h += `<div class="f-wrap"><div class="f-lbl">${lbl}</div><input class="f-in" id="${id}" placeholder="${ph}" inputmode="decimal"></div>`;
-    });
-    h += '</div><div class="f-g3">';
-    [['bike_puls','Ø Puls (bpm)','126'],['bike_belastung','Belastung','20'],['bike_hoehe','Höhengewinn (m)','1']].forEach(([id,lbl,ph]) => {
-      h += `<div class="f-wrap"><div class="f-lbl">${lbl}</div><input class="f-in" id="${id}" placeholder="${ph}" inputmode="decimal"></div>`;
-    });
+    h += '<div class="f-wrap"><div class="f-lbl">Distanz (km)</div><input class="f-in" id="bike_distanz" placeholder="1.58" inputmode="decimal" oninput="updateBikePreview()"></div>';
+    h += '<div class="f-wrap"><div class="f-lbl">Dauer (min:sek)</div><input class="f-in" id="bike_dauer" placeholder="10:00" inputmode="text" oninput="updateBikePreview()"></div>';
     h += '</div>';
+    h += '<div class="f-wrap"><div class="f-lbl">Max Peak Speed (km/h) — optional</div><input class="f-in" id="bike_maxspeed" placeholder="21.5" inputmode="decimal"></div>';
+    h += '<div style="background:var(--g0);border:1px solid var(--gdim);padding:8px;text-align:center;margin:6px 0"><div style="font-family:var(--fontd);font-size:20px;color:var(--cyan)" id="bike_speed_preview">-- km/h Ø</div><div style="font-size:7px;color:var(--gdim)">Distanz / (Dauer in Stunden)</div></div>';
     h += '<div class="mactions"><button class="btn cyan" onclick="saveBike()">SPEICHERN</button><button class="btn red" onclick="closeModal()">ABBRUCH</button></div>';
   }
 
   if (modal==='ergo') {
-    h += '<div class="modal-title">🚲 ERGOMETER SESSION</div><div class="modal-sub">DATEN EINTRAGEN</div>';
-    h += '<div class="f-g3">';
-    [['ergo_dauer','Dauer (min:sek)','15:00'],['ergo_km','km (optional)',''],['ergo_puls','Ø Puls (bpm)','120']].forEach(([id,lbl,ph]) => {
-      h += `<div class="f-wrap"><div class="f-lbl">${lbl}</div><input class="f-in" id="${id}" placeholder="${ph}" inputmode="${id==='ergo_dauer'?'text':'decimal'}"></div>`;
-    });
+    h += '<div class="modal-title">ERGOMETER SESSION</div><div class="modal-sub">AVG SPEED WIRD AUTOMATISCH BERECHNET</div>';
+    h += '<div class="f-g2">';
+    h += '<div class="f-wrap"><div class="f-lbl">Distanz (km)</div><input class="f-in" id="ergo_distanz" placeholder="5.0" inputmode="decimal" oninput="updateErgoPreview()"></div>';
+    h += '<div class="f-wrap"><div class="f-lbl">Dauer (min:sek)</div><input class="f-in" id="ergo_dauer" placeholder="15:00" inputmode="text" oninput="updateErgoPreview()"></div>';
     h += '</div>';
+    h += '<div style="background:var(--g0);border:1px solid var(--gdim);padding:8px;text-align:center;margin:6px 0"><div style="font-family:var(--fontd);font-size:20px;color:#66cc66" id="ergo_speed_preview">-- km/h Ø</div><div style="font-size:7px;color:var(--gdim)">Distanz / (Dauer in Stunden)</div></div>';
     h += '<div class="mactions"><button class="btn" style="border-color:#336633;color:#66cc66" onclick="saveErgo()">SPEICHERN</button><button class="btn red" onclick="closeModal()">ABBRUCH</button></div>';
   }
 
@@ -1340,104 +1237,82 @@ function renderModal() {
   updateEgymPreview();
 }
 
-function updateSet(exId, idx, field, val) {
-  if (!exSetsState[exId]) return;
-  exSetsState[exId][idx][field] = val;
-}
-
-function addSet(exId) {
-  if (!exSetsState[exId]) exSetsState[exId] = [];
-  exSetsState[exId].push({kg:'',wdh:''});
-  renderModal();
-}
-
-function removeSet(exId, idx) {
-  if (!exSetsState[exId]) return;
-  exSetsState[exId].splice(idx,1);
-  renderModal();
-}
+function updateSet(exId, idx, field, val) { if(exSetsState[exId]) exSetsState[exId][idx][field]=val; }
+function addSet(exId) { if(!exSetsState[exId]) exSetsState[exId]=[]; exSetsState[exId].push({kg:'',wdh:''}); renderModal(); }
+function removeSet(exId, idx) { if(exSetsState[exId]) exSetsState[exId].splice(idx,1); renderModal(); }
 
 function updateEgymPreview() {
-  const modeId = (document.getElementById('egym_mode')||{}).value||'isokinetisch';
-  const modeObj = EGYM_MODES.find(m=>m.id===modeId)||EGYM_MODES[3];
-  const bw = parseFloat(state.checkins.findLast(c=>c.weight)?.weight||100);
-
-  // Build sets from form
-  const sets = [];
-  let score = 0;
-  EGYM_EX.forEach(ex => {
-    const exSets = exSetsState[ex.id]||[];
-    exSets.forEach(s => {
-      const kg=parseFloat(s.kg||0), wdh=parseFloat(s.wdh||0);
-      if (kg>0&&wdh>0) {
-        score += kg*wdh;
-        sets.push({kg, wdh, stat:ex.stat});
-      }
+  var modeId = (document.getElementById('egym_mode')||{}).value||'isokinetisch';
+  var modeObj = EGYM_MODES.find(function(m){return m.id===modeId;})||EGYM_MODES[3];
+  var lastCI = (state.checkins&&state.checkins.length) ? state.checkins.findLast(function(c){return c&&c.weight;}) : null;
+  var bw = lastCI ? parseFloat(lastCI.weight) : 107.4;
+  var sets = [], score = 0;
+  EGYM_EX.forEach(function(ex) {
+    (exSetsState[ex.id]||[]).forEach(function(s) {
+      var kg=parseFloat(s.kg||0), wdh=parseFloat(s.wdh||0);
+      if(kg>0&&wdh>0){ score+=kg*wdh; sets.push({kg:kg,wdh:wdh,stat:ex.stat}); }
     });
   });
+  var xpR = calcEgymXP(sets, bw, modeObj.factor);
+  var sp=document.getElementById('sp_score'), sx=document.getElementById('sp_xp');
+  if(sp) sp.textContent=Math.round(score);
+  if(sx) sx.textContent=xpR.total.toFixed(1)+' XP';
+}
 
-  const xpR = calcEgymXP(sets, bw, modeObj.factor);
-  const sp = document.getElementById('sp_score');
-  const sx = document.getElementById('sp_xp');
-  if(sp) sp.textContent = Math.round(score);
-  if(sx) sx.textContent = xpR.total.toFixed(1)+' XP';
+function updateRpmPreview() {
+  var j=parseInt((document.getElementById('seil_jumps')||{}).value||0,10);
+  var s=parseFloat((document.getElementById('seil_secs')||{}).value||0);
+  var el=document.getElementById('rpm_preview');
+  if(el) el.textContent = s>0 ? Math.round((j/s)*60)+' RPM' : '-- RPM';
+}
+
+function updateBikePreview() {
+  var d=parseFloat((document.getElementById('bike_distanz')||{}).value||0);
+  var dur=parseMinSek((document.getElementById('bike_dauer')||{}).value||'');
+  var el=document.getElementById('bike_speed_preview');
+  if(el) el.textContent = (dur>0&&d>0) ? (Math.round((d/(dur/60))*10)/10)+' km/h Ø' : '-- km/h Ø';
+}
+
+function updateErgoPreview() {
+  var d=parseFloat((document.getElementById('ergo_distanz')||{}).value||0);
+  var dur=parseMinSek((document.getElementById('ergo_dauer')||{}).value||'');
+  var el=document.getElementById('ergo_speed_preview');
+  if(el) el.textContent = (dur>0&&d>0) ? (Math.round((d/(dur/60))*10)/10)+' km/h Ø' : '-- km/h Ø';
 }
 
 function saveEgym() {
-  const modeId = (document.getElementById('egym_mode')||{}).value||'isokinetisch';
-  // Collect exData from state
-  const exData = {};
-  EGYM_EX.forEach(ex => {
-    exData[ex.id] = (exSetsState[ex.id]||[]).filter(s=>parseFloat(s.kg)>0&&parseFloat(s.wdh)>0);
-  });
+  var modeId=(document.getElementById('egym_mode')||{}).value||'isokinetisch';
+  var exData={};
+  EGYM_EX.forEach(function(ex){ exData[ex.id]=(exSetsState[ex.id]||[]).filter(function(s){return parseFloat(s.kg)>0&&parseFloat(s.wdh)>0;}); });
   processEgym(exData, modeId);
-  closeModal();
-  toast('✓ EGYM gespeichert');
-  render();
+  closeModal(); toast('EGYM gespeichert'); render();
 }
 
 function saveSeil() {
-  const f = {
-    dauer: (document.getElementById('seil_dauer')||{}).value||'',
-    rpm:   (document.getElementById('seil_rpm')||{}).value||'',
-    runden:(document.getElementById('seil_runden')||{}).value||'',
-    note:  (document.getElementById('seil_note')||{}).value||'',
-  };
-  if (!f.dauer || !f.rpm) { toast('Dauer + RPM erforderlich','err'); return; }
-  processSeil(f);
-  closeModal();
-  toast('✓ Seil gespeichert');
-  render();
+  var dauer=(document.getElementById('seil_dauer')||{}).value||'';
+  var runden=(document.getElementById('seil_runden')||{}).value||'';
+  var jumps=(document.getElementById('seil_jumps')||{}).value||'';
+  var secs=(document.getElementById('seil_secs')||{}).value||'';
+  if (!dauer||!jumps||!secs) { toast('Dauer + Sprünge + Sekunden erforderlich','err'); return; }
+  processSeil({dauer:dauer, runden:runden, jumps:jumps, seconds:secs});
+  closeModal(); toast('Seil gespeichert'); render();
 }
 
 function saveBike() {
-  const f = {
-    distanz:  (document.getElementById('bike_distanz')||{}).value||'',
-    dauer:    parseMinSek((document.getElementById('bike_dauer')||{}).value||''),
-    avgSpeed: (document.getElementById('bike_avgSpeed')||{}).value||'',
-    maxSpeed: (document.getElementById('bike_maxSpeed')||{}).value||'',
-    avgPuls:  (document.getElementById('bike_puls')||{}).value||'',
-    belastung:(document.getElementById('bike_belastung')||{}).value||'',
-    hoehe:    (document.getElementById('bike_hoehe')||{}).value||'',
-  };
-  if (!f.distanz || !f.belastung) { toast('Distanz + Belastung erforderlich','err'); return; }
-  processBike(f);
-  closeModal();
-  toast('✓ Rad gespeichert');
-  render();
+  var distanz=(document.getElementById('bike_distanz')||{}).value||'';
+  var dauer=(document.getElementById('bike_dauer')||{}).value||'';
+  var maxSpeed=(document.getElementById('bike_maxspeed')||{}).value||'';
+  if (!distanz||!dauer) { toast('Distanz + Dauer erforderlich','err'); return; }
+  processBike({distanz:distanz, dauer:dauer, maxSpeed:maxSpeed});
+  closeModal(); toast('Rad gespeichert'); render();
 }
 
 function saveErgo() {
-  const f = {
-    dauer: (document.getElementById('ergo_dauer')||{}).value||'',
-    km:    (document.getElementById('ergo_km')||{}).value||'',
-    puls:  (document.getElementById('ergo_puls')||{}).value||'',
-  };
-  if (!f.dauer) { toast('Dauer erforderlich','err'); return; }
-  processErgo(f);
-  closeModal();
-  toast('✓ Ergometer gespeichert');
-  render();
+  var distanz=(document.getElementById('ergo_distanz')||{}).value||'';
+  var dauer=(document.getElementById('ergo_dauer')||{}).value||'';
+  if (!dauer) { toast('Dauer erforderlich','err'); return; }
+  processErgo({distanz:distanz, dauer:dauer});
+  closeModal(); toast('Ergometer gespeichert'); render();
 }
 
 render();
