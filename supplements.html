@@ -1205,7 +1205,7 @@ function render() {
   h += '<div class="supp-progress">';
   h += '<div class="supp-progress-lbl">PROTOKOLL</div>';
   h += '<div class="supp-progress-track"><div class="supp-progress-fill' + (complete?' done':'') + '" style="width:' + pct + '%"></div></div>';
-  h += '<div class="supp-progress-num" style="color:' + (complete?'var(--amber)':'var(--glow)') + '">' + takenCount + '/' + reqCount + (complete?' CHECK':'') + '</div>';
+  h += '<div class="supp-progress-num" style="color:' + (complete?'var(--amber)':'var(--purple)') + '">' + takenCount + '/' + reqCount + (complete?' CHECK':'') + '</div>';
   h += '</div>';
 
   h += '<div class="scroll"><div class="pad">';
@@ -1221,11 +1221,11 @@ function render() {
     var taken = !!todaySupps[sup.id];
     var streak = state.suppStreaks[sup.id] || 0;
     var isLast = i === KERN_SUPPS.length - 1;
-    h += '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:' + (isLast?'none':'1px solid var(--g2)') + ';background:' + (taken?'rgba(68,255,68,0.04)':'transparent') + ';cursor:pointer;" onclick="doToggleKern(\'' + sup.id + '\')">';
-    h += '<div style="width:22px;height:22px;border:1px solid ' + (taken?'var(--glow)':'var(--gdim)') + ';background:' + (taken?'var(--glow)':'transparent') + ';display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;font-weight:bold;color:#000;">' + (taken?'v':'') + '</div>';
+    h += '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:' + (isLast?'none':'1px solid var(--g2)') + ';background:' + (taken?'rgba(170,68,255,0.05)':'transparent') + ';cursor:pointer;" onclick="doToggleKern(\'' + sup.id + '\')">';
+    h += '<div style="width:22px;height:22px;border:1px solid ' + (taken?'var(--purple)':'var(--adim)') + ';background:' + (taken?'var(--purple)':'transparent') + ';display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:13px;font-weight:bold;color:#fff;">' + (taken?'✓':'') + '</div>';
     h += '<div style="font-size:18px;flex-shrink:0;">' + sup.icon + '</div>';
-    h += '<div style="flex:1;"><div style="font-size:10px;color:' + (taken?'var(--glow)':'var(--tb)') + ';">' + sup.name + '</div><div style="font-size:8px;color:var(--gdim);">' + sup.dose + '</div></div>';
-    h += '<div style="font-family:var(--fontd);font-size:14px;color:' + (taken?'var(--glow)':'var(--gdim)') + ';margin-right:6px;">' + streak + '<span style="font-size:7px;font-family:var(--font)">d</span></div>';
+    h += '<div style="flex:1;"><div style="font-size:10px;color:' + (taken?'var(--purple)':'var(--tb)') + ';">' + sup.name + '</div><div style="font-size:8px;color:var(--gdim);">' + sup.dose + '</div></div>';
+    h += '<div style="font-family:var(--fontd);font-size:14px;color:' + (taken?'var(--purple)':'var(--adim)') + ';margin-right:6px;">' + streak + '<span style="font-size:7px;font-family:var(--font)">d</span></div>';
     h += '<div style="width:22px;height:22px;border:1px solid var(--gdim);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--gdim);cursor:pointer;flex-shrink:0;" onclick="event.stopPropagation();toast(\'' + sup.icon + ' ' + sup.name + ': ' + sup.dose + ' | ' + sup.desc + '\')">i</div>';
     h += '</div>';
   });
