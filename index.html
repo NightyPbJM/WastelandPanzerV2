@@ -341,7 +341,6 @@ function calcStats(st) {
 function recalcStats() {
   const newStats = calcStats(state);
   KEYS.forEach(k => {
-    if (k==='L') return;
     const old=state.stats[k], nv=newStats[k];
     if (nv!==old) addEv(nv>old?'level_up':'level_down', `${k} → ${nv} ${nv>old?'▲':'▼'} (objektiv)`);
     state.stats[k] = nv;
