@@ -230,18 +230,20 @@ function recalcAllStreaks() {
 function calcStats(st) {
   const s = {...st.stats};
 
-  // STRENGTH
+  // STRENGTH — Score / Fettmasse (belohnt Kraft UND Körperkomposition)
   const egymS = (st.trainings||[]).filter(t => t.type==='egym');
   if (egymS.length > 0) {
-    const lastCI = (st.checkins && st.checkins.length) ? st.checkins.findLast(c=>c&&c.weight) : null;
+    const lastCI = (st.checkins && st.checkins.length) ? st.checkins.findLast(c=>c&&c.weight&&c.fat) : null;
     const bw = lastCI ? parseFloat(lastCI.weight) : 107.4;
+    const kfa = lastCI ? parseFloat(lastCI.fat) : 27.9;
+    const fettmasse = bw * (kfa/100);
     const best = Math.max(...egymS.map(t => t.score||0));
-    const ratio = best / bw;
-    if      (ratio>=60) s.S=10; else if (ratio>=48) s.S=9;
-    else if (ratio>=38) s.S=8;  else if (ratio>=29) s.S=7;
-    else if (ratio>=21) s.S=6;  else if (ratio>=14) s.S=5;
-    else if (ratio>=9)  s.S=4;  else if (ratio>=5)  s.S=3;
-    else if (ratio>=2)  s.S=2;  else s.S=1;
+    const ratio = fettmasse > 0 ? best / fettmasse : 0;
+    if      (ratio>=1800) s.S=10; else if (ratio>=1500) s.S=9;
+    else if (ratio>=1250) s.S=8;  else if (ratio>=1000) s.S=7;
+    else if (ratio>=800)  s.S=6;  else if (ratio>=650)  s.S=5;
+    else if (ratio>=500)  s.S=4;  else if (ratio>=350)  s.S=3;
+    else if (ratio>=200)  s.S=2;  else s.S=1;
   }
 
   // PERCEPTION
@@ -373,20 +375,22 @@ function calcSeilXP(dauer, rpm) {
   return {total:Math.round(boosted*10)/10, statXP:{E:Math.round(boosted*0.6*10)/10, A:Math.round(boosted*0.4*10)/10}};
 }
 
-function calcBikeXP(distanz, avgSpeed) {
-  const base = parseFloat(distanz||0)*(parseFloat(avgSpeed||0)/10);
+function calcBikeXP(distanz, avgSpeed, dauer) {
+  // Zeitbasiert: Minuten × Intensität (avgSpeed/10)
+  const base = parseFloat(dauer||0)*(parseFloat(avgSpeed||0)/10);
   const boosted = base*VET;
   return {total:Math.round(boosted*10)/10, statXP:{E:Math.round(boosted*0.6*10)/10, A:Math.round(boosted*0.4*10)/10}};
 }
 
-function calcErgoXP(distanz, avgSpeed) {
-  const base = parseFloat(distanz||0)*(parseFloat(avgSpeed||0)/10)||parseFloat(distanz||0)*0.8;
+function calcErgoXP(distanz, avgSpeed, dauer) {
+  // Zeitbasiert: Minuten × Intensität
+  const base = parseFloat(dauer||0)*(parseFloat(avgSpeed||0)/10)||parseFloat(dauer||0)*0.8;
   const boosted = base*VET;
   return {total:Math.round(boosted*10)/10, statXP:{E:Math.round(boosted*0.7*10)/10, A:Math.round(boosted*0.3*10)/10}};
 }
 
 function calcSleepXP(sleepScore) {
-  return Math.round(parseFloat(sleepScore||0)*0.5*VET*10)/10;
+  return Math.round(parseFloat(sleepScore||0)*0.1*VET*10)/10;
 }
 
 function applyXP(xpResult) {
@@ -517,7 +521,7 @@ function processBike(f) {
   const dauer = parseMinSek(f.dauer);
   const distanz = parseFloat(f.distanz||0);
   const avgSpeed = dauer > 0 ? Math.round((distanz/(dauer/60))*10)/10 : 0;
-  const xpResult = calcBikeXP(distanz, avgSpeed);
+  const xpResult = calcBikeXP(distanz, avgSpeed, dauer);
   state.trainings.push({type:'bike', date:today(), distanz, dauer, avgSpeed, maxSpeed:parseFloat(f.maxSpeed||0), sessionXP:xpResult.total, statXP:xpResult.statXP});
   applyXP(xpResult);
   addEv('training', `RAD: ${distanz}km · ${avgSpeed}km/h Ø · +${xpResult.total} XP`);
@@ -529,7 +533,7 @@ function processErgo(f) {
   const dauer = parseMinSek(f.dauer);
   const distanz = parseFloat(f.distanz||0);
   const avgSpeed = dauer > 0 ? Math.round((distanz/(dauer/60))*10)/10 : 0;
-  const xpResult = calcErgoXP(distanz, avgSpeed);
+  const xpResult = calcErgoXP(distanz, avgSpeed, dauer);
   state.trainings.push({type:'ergo', date:today(), distanz, dauer, avgSpeed, sessionXP:xpResult.total, statXP:xpResult.statXP});
   applyXP(xpResult);
   addEv('training', `ERGO: ${formatMinSek(dauer)}min · ${distanz?distanz+'km':'--'} · +${xpResult.total} XP`);
