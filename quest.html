@@ -32,7 +32,7 @@ const STAT_DEFS = {
   C:{name:'CHARISMA',    short:'CHA', basis:'Supplement-Streak', anchor:false},
   I:{name:'INTELLIGENCE',short:'INT', basis:'Viszeralfett inv.', anchor:false},
   A:{name:'AGILITY',     short:'AGI', basis:'WHR + KFA',         anchor:false},
-  L:{name:'LAUFEN',      short:'LAU', basis:'Schritte/Woche',    anchor:false},
+  L:{name:'LAUFEN',      short:'LAU', basis:'Schritte/Woche',    anchor:true},
 };
 const KEYS = ['S','P','E','C','I','A','L'];
 
@@ -935,6 +935,9 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 .sym-data{display:flex;gap:10px;font-size:8px;color:var(--gdim);}
 
 /* TOAST */
+
+.page-footer{text-align:center;padding:6px;font-size:7px;color:var(--gdim);border-top:1px solid var(--g2);flex-shrink:0;letter-spacing:1px;}
+
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--g1);border:1px solid var(--glow);color:var(--glow);padding:7px 16px;font-size:9px;z-index:9999;white-space:nowrap;animation:tin .25s ease,tout .25s ease 1.75s both;}
 .toast.err{border-color:var(--red);color:var(--red);}
 .toast.amber{border-color:var(--amber);color:var(--amber);}
@@ -1371,6 +1374,7 @@ function render() {
     h += '</div>';
   });
 
+  h += '<div class="page-footer">V3.8.20260603 — WASTELAND PANZER</div>';
   h += '</div></div>';
   root.innerHTML = h;
 }

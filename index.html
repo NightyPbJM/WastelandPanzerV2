@@ -32,7 +32,7 @@ const STAT_DEFS = {
   C:{name:'CHARISMA',    short:'CHA', basis:'Supplement-Streak', anchor:false},
   I:{name:'INTELLIGENCE',short:'INT', basis:'Viszeralfett inv.', anchor:false},
   A:{name:'AGILITY',     short:'AGI', basis:'WHR + KFA',         anchor:false},
-  L:{name:'LAUFEN',      short:'LAU', basis:'Schritte/Woche',    anchor:false},
+  L:{name:'LAUFEN',      short:'LAU', basis:'Schritte/Woche',    anchor:true},
 };
 const KEYS = ['S','P','E','C','I','A','L'];
 
@@ -935,6 +935,9 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 .sym-data{display:flex;gap:10px;font-size:8px;color:var(--gdim);}
 
 /* TOAST */
+
+.page-footer{text-align:center;padding:6px;font-size:7px;color:var(--gdim);border-top:1px solid var(--g2);flex-shrink:0;letter-spacing:1px;}
+
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--g1);border:1px solid var(--glow);color:var(--glow);padding:7px 16px;font-size:9px;z-index:9999;white-space:nowrap;animation:tin .25s ease,tout .25s ease 1.75s both;}
 .toast.err{border-color:var(--red);color:var(--red);}
 .toast.amber{border-color:var(--amber);color:var(--amber);}
@@ -1232,6 +1235,8 @@ function render() {
 
   h += `<button class="btn" onclick="openModal('checkin')">⊙ KÖRPER CHECK-IN</button>`;
   h += `<button class="btn amber" onclick="openModal('pause')">⏸ PAUSE STATUS</button>`;
+  h += `<button class="btn blue" onclick="openModal('schritte')">👟 SCHRITTE EINTRAGEN</button>`;
+  h += '<div class="page-footer">V3.8.20260603 — WASTELAND PANZER</div>';
   h += '</div></div>';
 
   root.innerHTML = h;
@@ -1282,7 +1287,7 @@ function renderModal() {
     });
     h += '</div><div class="f-g2">';
     [['bp','Blutdruck','128/83'],['sleep','Schlaf (h)','4.5'],
-     ['sleepScore','Schlaf-Score','58'],['schritte','Schritte heute',''],['note','Notiz','']].forEach(([id,lbl,ph]) => {
+     ['sleepScore','Schlaf-Score','58'],['note','Notiz','']].forEach(([id,lbl,ph]) => {
       h += `<div class="f-wrap"><div class="f-lbl">${lbl}</div>
         <input class="f-in" id="ci_${id}" placeholder="${ph}" inputmode="${id==='bp'||id==='note'?'text':'decimal'}"></div>`;
     });
@@ -1297,6 +1302,27 @@ function renderModal() {
     }
     h += '<div style="background:var(--g0);border:1px solid var(--amber);padding:5px 8px;margin-top:4px;font-size:8px;color:var(--amber)">WHR = Taille ÷ Hüfte — wird automatisch berechnet.</div>';
     h += '<div class="mactions"><button class="btn" onclick="saveCheckin()">SPEICHERN</button><button class="btn red" onclick="closeModal()">ABBRUCH</button></div>';
+  }
+
+  if (modal==='schritte') {
+    // Letzte 7 Tage mit Schritten anzeigen und editierbar machen
+    var last7 = [];
+    for (var di=0; di<7; di++) {
+      var dd = new Date();
+      dd.setDate(dd.getDate()-di);
+      var ds = dd.toLocaleDateString('de-DE');
+      var ci = state.checkins.findLast(function(c){return c&&c.date===ds;});
+      last7.push({date:ds, schritte:(ci&&ci.schritte)||''});
+    }
+    h += '<div class="modal-title">👟 SCHRITTE</div>';
+    h += '<div class="modal-sub">LETZTE 7 TAGE — NACHTRAGEN MÖGLICH</div>';
+    last7.forEach(function(d,i) {
+      h += '<div class="f-g2" style="margin-bottom:4px">';
+      h += '<div style="font-size:9px;color:var(--gdim);padding:8px 0">' + d.date + '</div>';
+      h += '<input class="f-in" id="schr_' + i + '" data-date="' + d.date + '" placeholder="0" inputmode="decimal" value="' + d.schritte + '">';
+      h += '</div>';
+    });
+    h += '<div class="mactions"><button class="btn blue" onclick="saveSchritte()">SPEICHERN</button><button class="btn red" onclick="closeModal()">ABBRUCH</button></div>';
   }
 
   if (modal==='pause') {
@@ -1324,9 +1350,32 @@ function startPauseModal() {
   render();
 }
 
+function saveSchritte() {
+  for (var i=0; i<7; i++) {
+    var el = document.getElementById('schr_'+i);
+    if (!el) continue;
+    var date = el.getAttribute('data-date');
+    var val = el.value.trim();
+    if (!val) continue;
+    // Finde oder erstelle Check-in für dieses Datum
+    var ci = state.checkins.findLast(function(c){return c&&c.date===date;});
+    if (ci) {
+      ci.schritte = val;
+    } else {
+      state.checkins.push({date:date, schritte:val, weight:'', visceral:'', muscle:'', fat:'', bp:'', sleep:'', sleepScore:'', whr:'', note:''});
+      state.checkins.sort(function(a,b){
+        var pa=a.date.split('.'), pb=b.date.split('.');
+        return new Date(pa[2],pa[1]-1,pa[0]) - new Date(pb[2],pb[1]-1,pb[0]);
+      });
+    }
+  }
+  recalcStats(); saveState();
+  closeModal(); toast('Schritte gespeichert'); render();
+}
+
 function saveCheckin() {
   const f = {};
-  ['weight','visceral','muscle','fat','bp','sleep','sleepScore','schritte','note'].forEach(k => {
+  ['weight','visceral','muscle','fat','bp','sleep','sleepScore','note'].forEach(k => {
     f[k] = (document.getElementById('ci_'+k)||{}).value?.trim()||'';
   });
   MEASUREMENTS.forEach(m => {
