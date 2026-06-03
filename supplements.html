@@ -1103,8 +1103,9 @@ function render() {
   const bkTaken = bkOn && !!dailyOpt.checked['bkomplex'];
   const ksmTaken = ksmOn && state.ksm.lastTakenDate === today();
 
-  const reqCount = kernTotal + 1 + (bkOn?1:0) + (ksmOn?1:0);
-  const takenCount = kernTaken + (hdlTaken?1:0) + (bkTaken?1:0) + (ksmTaken?1:0);
+  // Protokoll-Balken: nur Kern-Supps
+  const reqCount = kernTotal;
+  const takenCount = kernTaken;
   const pct = reqCount > 0 ? Math.round((takenCount/reqCount)*100) : 0;
   const complete = takenCount >= reqCount;
 
