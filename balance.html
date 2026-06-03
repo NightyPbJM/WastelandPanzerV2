@@ -1088,159 +1088,160 @@ function validateCheckin(f) {
 }
 
 document.querySelector('style').textContent = SHARED_CSS;
-
-// ---- BALANCE PAGE ----
+// ---- BALANCE PAGE v3.6 ----
 
 function render() {
-  const root = document.getElementById('root');
-  const penSt = checkPenalty();
-  const latest = state.checkins[state.checkins.length-1]||{} || {};
+  var root = document.getElementById('root');
+  var penSt = checkPenalty();
+  var latest = state.checkins[state.checkins.length-1] || {};
 
-  let h = renderHeader('balance.html');
-  if (penSt.active) h += `<div class="penalty-bar">⚠ PANZER ROSTET — ${penSt.days} TAGE INAKTIV</div>`;
-
+  var h = renderHeader('balance.html');
+  if (penSt.active) h += '<div class="penalty-bar">PANZER ROSTET — ' + penSt.days + ' TAGE INAKTIV</div>';
   h += '<div class="scroll"><div class="pad">';
 
-  // SYMMETRIE
+  // ===== MUSKELBALANCE =====
+  h += '<div class="sec-title" style="border-top:none;margin-top:0">MUSKELBALANCE — EGYM</div>';
+
+  var egymS = state.trainings.filter(function(t){ return t.type==='egym' && t.exData; });
+
+  if (!egymS.length) {
+    h += '<div style="font-size:9px;color:var(--gdim);margin-bottom:8px">Keine EGYM Sessions mit Übungsdaten. Nach nächster Session verfügbar.</div>';
+  } else {
+    // Bestes Volumen pro Übung
+    var bestVol = {};
+    EGYM_EX.forEach(function(ex) {
+      var maxVol = 0;
+      egymS.forEach(function(t) {
+        var sets = t.exData[ex.id]||[];
+        var vol = sets.reduce(function(s,set){ return s+(parseFloat(set.kg)||0)*(parseFloat(set.wdh)||0); }, 0);
+        if (vol > maxVol) maxVol = vol;
+      });
+      bestVol[ex.id] = maxVol;
+    });
+
+    var pairs = [
+      {a:'latzug',       b:'brustpresse',   aName:'Latissimus', bName:'Brust',        aCol:'var(--glow)',  bCol:'var(--blue)'},
+      {a:'latzug',       b:'schulterpresse', aName:'Latissimus', bName:'Schulter',     aCol:'var(--glow)',  bCol:'var(--blue)'},
+      {a:'rueckentrainer',b:'brustpresse',   aName:'Ob. Rücken', bName:'Brust',        aCol:'var(--glow)',  bCol:'var(--blue)'},
+      {a:'beinbeuger',   b:'beinstrecker',  aName:'Beinbeuger', bName:'Quadrizeps',   aCol:'var(--amber)', bCol:'var(--cyan)'},
+      {a:'rueckentrainer',b:'bauchtrainer', aName:'Unt. Rücken',bName:'Bauch',        aCol:'var(--glow)',  bCol:'var(--purple)'},
+    ];
+
+    pairs.forEach(function(pair) {
+      var aVol = bestVol[pair.a]||0;
+      var bVol = bestVol[pair.b]||0;
+      if (!aVol && !bVol) return;
+      var total = aVol + bVol;
+      var aPct = total>0 ? Math.round((aVol/total)*100) : 50;
+      var bPct = 100-aPct;
+      var diff = Math.abs(aPct-bPct);
+      var balanced = diff <= 15;
+      var dominant = aVol > bVol ? pair.aName : pair.bName;
+      var statusCol = balanced ? 'var(--glow)' : 'var(--amber)';
+      var statusText = balanced ? 'AUSGEGLICHEN' : dominant.toUpperCase() + ' DOMINANT';
+
+      h += '<div style="border:1px solid ' + statusCol + ';padding:8px 10px;margin-bottom:5px;">';
+      h += '<div style="display:flex;justify-content:space-between;margin-bottom:4px">';
+      h += '<div style="font-size:8px;color:var(--gdim)">' + pair.aName + ' vs ' + pair.bName + '</div>';
+      h += '<div style="font-size:8px;color:' + statusCol + ';font-weight:bold">' + statusText + '</div>';
+      h += '</div>';
+      h += '<div style="height:8px;background:var(--g1);border:1px solid var(--gdim);overflow:hidden;display:flex;margin-bottom:3px">';
+      h += '<div style="height:100%;width:' + aPct + '%;background:' + pair.aCol + ';transition:width .5s"></div>';
+      h += '<div style="height:100%;width:' + bPct + '%;background:' + pair.bCol + ';transition:width .5s"></div>';
+      h += '</div>';
+      h += '<div style="display:flex;justify-content:space-between;font-size:7px">';
+      h += '<div style="color:' + pair.aCol + '">■ ' + pair.aName + ' ' + aPct + '%</div>';
+      h += '<div style="color:' + pair.bCol + '">■ ' + pair.bName + ' ' + bPct + '%</div>';
+      h += '</div>';
+      if (!balanced) {
+        var weak = aVol <= bVol ? pair.aName : pair.bName;
+        h += '<div style="font-size:8px;color:var(--amber);margin-top:3px;border-top:1px solid var(--g2);padding-top:3px">Fokus: ' + weak + ' stärken</div>';
+      }
+      h += '</div>';
+    });
+
+    // Gesamt Push vs Pull
+    var totalPush = (bestVol['brustpresse']||0)+(bestVol['schulterpresse']||0);
+    var totalPull = (bestVol['latzug']||0)+(bestVol['ruderzug']||0)+(bestVol['rueckentrainer']||0);
+    var totalAll = totalPush+totalPull;
+    var pushPct = totalAll>0 ? Math.round((totalPush/totalAll)*100) : 50;
+    var pullPct = 100-pushPct;
+    var balTotal = Math.abs(pushPct-pullPct) <= 15;
+
+    h += '<div class="card' + (balTotal?'':' card-amber') + '" style="margin-top:2px">';
+    h += '<div style="font-size:8px;color:var(--gdim);margin-bottom:4px">GESAMT PUSH vs PULL</div>';
+    h += '<div style="height:8px;background:var(--g1);border:1px solid var(--gdim);overflow:hidden;display:flex;margin-bottom:3px">';
+    h += '<div style="height:100%;width:' + pushPct + '%;background:var(--blue)"></div>';
+    h += '<div style="height:100%;width:' + pullPct + '%;background:var(--glow)"></div>';
+    h += '</div>';
+    h += '<div style="display:flex;justify-content:space-between;font-size:7px">';
+    h += '<div style="color:var(--blue)">■ PUSH ' + pushPct + '%</div>';
+    h += '<div style="color:' + (balTotal?'var(--glow)':'var(--amber)') + '">' + (balTotal?'AUSGEGLICHEN':'UNBALANCE') + '</div>';
+    h += '<div style="color:var(--glow)">■ PULL ' + pullPct + '%</div>';
+    h += '</div></div>';
+  }
+
+  // ===== KÖRPER-SYMMETRIE =====
   h += '<div class="sec-title">KÖRPER-SYMMETRIE</div>';
-  const pairs = [
+  var symPairs = [
     {l:'lArm', r:'rArm', name:'Arm'},
     {l:'lOber',r:'rOber',name:'Oberschenkel'},
     {l:'lWade',r:'rWade',name:'Wade'},
   ];
-  let hasAnyPair = false;
-  pairs.forEach(p => {
-    const lv = parseFloat(latest[p.l]||0), rv = parseFloat(latest[p.r]||0);
-    if (!lv || !rv) return;
-    hasAnyPair = true;
-    const diff = Math.abs(lv-rv);
-    const pct = Math.round((diff/Math.max(lv,rv))*100);
-    const ok = pct <= 2;
-    h += `<div class="sym-card${ok?' ok':' warn'}">
-      <div class="sym-header">
-        <div class="sym-name">${p.name.toUpperCase()}</div>
-        <div class="sym-status" style="color:${ok?'var(--glow)':'var(--amber)'}">${ok?'SYMMETRISCH':'ABWEICHUNG '+pct+'%'}</div>
-      </div>
-      <div class="sym-data">
-        <div>L: ${lv.toFixed(1)}cm</div>
-        <div>R: ${rv.toFixed(1)}cm</div>
-        <div>Diff: ${diff.toFixed(1)}cm</div>
-      </div>
-    </div>`;
-  });
-  if (!hasAnyPair) {
-    h += '<div style="font-size:9px;color:var(--gdim)">Körpermaße (L/R) eingeben für Symmetrie-Analyse.</div>';
-  }
-
-  // PUSH/PULL DYSBALANCE
-  h += '<div class="sec-title">PUSH/PULL BALANCE</div>';
-  const egymS = state.trainings.filter(t=>t.type==='egym');
-  if (egymS.length > 0) {
-    // Push: Brustpresse, Schulterpresse
-    // Pull: Latzug, Ruderzug, Rückentrainer
-    let pushVol=0, pullVol=0;
-    egymS.forEach(t => {
-      if (!t.exData) return;
-      ['brustpresse','schulterpresse'].forEach(id => {
-        (t.exData[id]||[]).forEach(s => { pushVol += (parseFloat(s.kg)||0)*(parseFloat(s.wdh)||0); });
-      });
-      ['latzug','ruderzug','rueckentrainer'].forEach(id => {
-        (t.exData[id]||[]).forEach(s => { pullVol += (parseFloat(s.kg)||0)*(parseFloat(s.wdh)||0); });
-      });
-    });
-    const total = pushVol + pullVol;
-    const pushPct = total>0 ? Math.round((pushVol/total)*100) : 50;
-    const pullPct = total>0 ? Math.round((pullVol/total)*100) : 50;
-    const balanced = Math.abs(pushPct-pullPct) <= 10;
-
-    h += `<div class="card${balanced?'':' card-amber'}">
-      <div style="display:flex;justify-content:space-between;margin-bottom:5px">
-        <div style="font-size:9px;color:var(--gdim)">PUSH: ${pushPct}%</div>
-        <div style="font-size:9px;color:${balanced?'var(--glow)':'var(--amber)'}">${balanced?'AUSGEWOGEN':'UNBALANCE'}</div>
-        <div style="font-size:9px;color:var(--gdim)">PULL: ${pullPct}%</div>
-      </div>
-      <div style="height:8px;background:var(--g1);border:1px solid var(--gdim);overflow:hidden;display:flex">
-        <div style="height:100%;width:${pushPct}%;background:var(--blue);transition:width .5s"></div>
-        <div style="height:100%;width:${pullPct}%;background:var(--glow);transition:width .5s"></div>
-      </div>
-      <div style="display:flex;justify-content:space-between;margin-top:3px">
-        <div style="font-size:7px;color:var(--blue)">■ Push (Brust+Schulter)</div>
-        <div style="font-size:7px;color:var(--glow)">■ Pull (Lat+Ruder+Rücken)</div>
-      </div>
-    </div>`;
-  } else {
-    h += '<div style="font-size:9px;color:var(--gdim)">EGYM-Sessions für Push/Pull-Analyse erforderlich.</div>';
-  }
-
-  // WHR
-  h += '<div class="sec-title">WAIST-TO-HIP RATIO</div>';
-  const taille = parseFloat(latest.taille||0);
-  const huefte = parseFloat(latest.huefte||0);
-  const whr = taille && huefte ? (taille/huefte) : null;
-  h += `<div class="card card-amber">
-    <div style="font-family:var(--fontd);font-size:22px;color:var(--amber);font-weight:700">${whr?whr.toFixed(3):'--'}</div>`;
-  if (whr) {
-    const whrStatus = whr<=0.87?'GUT':whr<=0.93?'MITTEL':'HOCH';
-    const whrCol = whr<=0.87?'var(--glow)':whr<=0.93?'var(--amber)':'var(--red)';
-    h += `<div style="font-size:9px;color:${whrCol};margin-top:2px">${whrStatus} — Ziel: &lt; 0.87</div>`;
-  } else {
-    h += `<div style="font-size:9px;color:var(--gdim)">Taille + Hüfte in Check-in eintragen</div>`;
-  }
-  h += '</div>';
-
-  // PAUSE
-  h += '<div class="sec-title">PAUSE / VERLETZUNG</div>';
-  const pause = state.pause || {};
-  h += `<div class="card${pause.active?' card-amber':''}">`;
-  if (pause.active) {
-    h += `<div style="font-size:10px;color:var(--amber);margin-bottom:4px">⏸ PAUSE AKTIV</div>`;
-    h += `<div style="font-size:9px;color:var(--gdim)">Grund: ${pause.reason||'--'}</div>`;
-    h += `<div style="font-size:9px;color:var(--gdim)">Seit: ${pause.startDate||'--'}</div>`;
-    h += `<button class="btn sm" onclick="endPause();render()">PAUSE BEENDEN</button>`;
-  } else {
-    h += `<div style="font-size:9px;color:var(--gdim);margin-bottom:6px">Keine aktive Pause. Penalty pausiert automatisch.</div>`;
-    h += `<div class="f-wrap"><div class="f-lbl">GRUND</div><input class="f-in" id="pause_reason" placeholder="Krankheit / Urlaub ..."></div>`;
-    h += `<button class="btn sm amber" onclick="startPauseFromPage()">PAUSE STARTEN</button>`;
-  }
-  h += '</div>';
-
-  // KÖRPERMASSE TREND
-  h += '<div class="sec-title">KÖRPERMASSE TREND</div>';
-  if (state.checkins.length >= 2) {
-    const first = state.checkins[0];
-    const last = latest;
-    const diffs = [
-      {lbl:'Taille',id:'taille',good:false},
-      {lbl:'Hüfte', id:'huefte',good:false},
-      {lbl:'Brust', id:'brust', good:true},
-      {lbl:'L.Arm', id:'lArm',  good:true},
-    ];
-    h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">';
-    diffs.forEach(d => {
-      const fv = parseFloat(first[d.id]||0), lv = parseFloat(last[d.id]||0);
-      if (!fv||!lv) return;
-      const diff = lv-fv;
-      const isPos = d.good ? diff>0 : diff<0;
-      h += `<div style="border:1px solid var(--gdim);padding:5px 7px">
-        <div style="font-size:7px;color:var(--gdim)">${d.lbl}</div>
-        <div style="font-family:var(--fontd);font-size:14px;color:var(--tb)">${lv.toFixed(1)}</div>
-        <div style="font-size:8px;color:${isPos?'var(--glow)':'var(--red)'}">${diff>0?'+':''}${diff.toFixed(1)}cm</div>
-      </div>`;
-    });
+  var hasAny = false;
+  symPairs.forEach(function(p) {
+    var lv=parseFloat(latest[p.l]||0), rv=parseFloat(latest[p.r]||0);
+    if (!lv||!rv) return;
+    hasAny = true;
+    var diff=Math.abs(lv-rv);
+    var pct=Math.round((diff/Math.max(lv,rv))*100);
+    var ok=pct<=2;
+    h += '<div class="sym-card' + (ok?' ok':' warn') + '">';
+    h += '<div class="sym-header"><div class="sym-name">' + p.name.toUpperCase() + '</div>';
+    h += '<div class="sym-status" style="color:' + (ok?'var(--glow)':'var(--amber)') + '">' + (ok?'SYMMETRISCH':'ABWEICHUNG '+pct+'%') + '</div></div>';
+    h += '<div class="sym-data"><div>L: ' + lv.toFixed(1) + 'cm</div><div>R: ' + rv.toFixed(1) + 'cm</div><div>Diff: ' + diff.toFixed(1) + 'cm</div></div>';
     h += '</div>';
+  });
+  if (!hasAny) h += '<div style="font-size:9px;color:var(--gdim)">Körpermaße über Check-in eintragen.</div>';
+
+  // ===== WHR =====
+  h += '<div class="sec-title">WAIST-TO-HIP RATIO</div>';
+  var taille=parseFloat(latest.taille||0), huefte=parseFloat(latest.huefte||0);
+  var whr = taille&&huefte ? taille/huefte : null;
+  h += '<div class="card card-amber">';
+  h += '<div style="font-family:var(--fontd);font-size:22px;color:var(--amber);font-weight:700">' + (whr?whr.toFixed(3):'--') + '</div>';
+  if (whr) {
+    var ws=whr<=0.87?'GUT':whr<=0.93?'MITTEL':'HOCH';
+    var wc=whr<=0.87?'var(--glow)':whr<=0.93?'var(--amber)':'var(--red)';
+    h += '<div style="font-size:9px;color:' + wc + ';margin-top:2px">' + ws + ' — Ziel: &lt; 0.87</div>';
   } else {
-    h += '<div style="font-size:9px;color:var(--gdim)">Mind. 2 Check-ins für Trend.</div>';
+    h += '<div style="font-size:9px;color:var(--gdim)">Taille + Hüfte in Check-in eintragen</div>';
   }
+  h += '</div>';
+
+  // ===== PAUSE =====
+  h += '<div class="sec-title">PAUSE / VERLETZUNG</div>';
+  var pause=state.pause||{};
+  h += '<div class="card' + (pause.active?' card-amber':'') + '">';
+  if (pause.active) {
+    h += '<div style="font-size:10px;color:var(--amber);margin-bottom:4px">PAUSE AKTIV</div>';
+    h += '<div style="font-size:9px;color:var(--gdim)">Grund: ' + (pause.reason||'--') + '</div>';
+    h += '<div style="font-size:9px;color:var(--gdim)">Seit: ' + (pause.startDate||'--') + '</div>';
+    h += '<button class="btn sm" onclick="endPause();render()">PAUSE BEENDEN</button>';
+  } else {
+    h += '<div style="font-size:9px;color:var(--gdim);margin-bottom:6px">Keine aktive Pause.</div>';
+    h += '<div class="f-wrap"><div class="f-lbl">GRUND</div><input class="f-in" id="pause_reason" placeholder="Krankheit / Urlaub ..."></div>';
+    h += '<button class="btn sm amber" onclick="startPauseFromPage()">PAUSE STARTEN</button>';
+  }
+  h += '</div>';
 
   h += '</div></div>';
   root.innerHTML = h;
 }
 
 function startPauseFromPage() {
-  const reason = (document.getElementById('pause_reason')||{}).value||'';
-  startPause(reason);
-  toast('Pause gestartet','amber');
-  render();
+  var reason=(document.getElementById('pause_reason')||{}).value||'';
+  startPause(reason); toast('Pause gestartet','amber'); render();
 }
 
 render();
