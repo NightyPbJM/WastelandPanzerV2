@@ -103,9 +103,16 @@ function daysBetween(a, b) {
 function parseMinSek(val) {
   if (!val && val !== 0) return 0;
   const s = String(val).trim();
-  if (s.includes(':')) {
-    const [m, sec] = s.split(':');
-    return parseInt(m||0,10) + parseInt(sec||0,10)/60;
+  // Support both "6:28" and "6.28" as min:sek
+  const sep = s.includes(':') ? ':' : s.includes('.') ? '.' : null;
+  if (sep) {
+    const parts = s.split(sep);
+    const m = parseInt(parts[0]||0, 10);
+    const sec = parseInt(parts[1]||0, 10);
+    // Sanity check: seconds should be 0-59
+    if (sec >= 0 && sec <= 59) return m + sec/60;
+    // If seconds > 59, treat as pure decimal minutes
+    return parseFloat(s) || 0;
   }
   return parseFloat(s) || 0;
 }
