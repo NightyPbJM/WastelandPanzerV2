@@ -1088,206 +1088,274 @@ function validateCheckin(f) {
 }
 
 document.querySelector('style').textContent = SHARED_CSS;
-// ---- QUEST PAGE ----
+// ---- QUEST PAGE v3.6 ----
 
-// Weekly Raids
 function getWeekKey() {
-  const d = new Date();
-  const mon = new Date(d);
+  var d = new Date();
+  var mon = new Date(d);
   mon.setDate(d.getDate() - ((d.getDay()+6)%7));
   return mon.toLocaleDateString('de-DE');
 }
 
 function loadQuestState() {
-  try {
-    const raw = state.questState || {};
-    const wk = getWeekKey();
-    return raw[wk] || {claimed:{}, checked:{}};
-  } catch(e) { return {claimed:{}, checked:{}}; }
-}
-
-function saveQuestState(qs) {
   if (!state.questState) state.questState = {};
-  state.questState[getWeekKey()] = qs;
-  saveState();
+  var wk = getWeekKey();
+  if (!state.questState.weekly) state.questState.weekly = {};
+  if (!state.questState.weekly[wk]) state.questState.weekly[wk] = {claimed:{}};
+  if (!state.questState.milestones) state.questState.milestones = {};
+  if (!state.questState.leber) state.questState.leber = {claimed1:false, claimed2:false};
+  return state.questState;
 }
 
-// Weekly raid definitions
-const WEEKLY_RAIDS = [
+// ---- WEEKLY RAIDS ----
+var WEEKLY_RAIDS = [
   {
-    id:'eisen_biegen',
-    name:'EISEN BIEGEN',
+    id:'eisen_biegen', name:'EISEN BIEGEN',
     desc:'EGYM an 2+ verschiedenen Tagen diese Woche',
-    reward:'+50 XP STR',
-    rewardStat:'S', rewardXP:50,
-    check: () => {
-      const wk = getWeekKey();
-      const wkDate = parseDE(wk);
-      const egymDays = new Set(state.trainings.filter(t => {
+    reward:'+100 XP', rewardXP:100, rewardStat:'S',
+    check: function() {
+      var wkDate = parseDE(getWeekKey());
+      var days = new Set(state.trainings.filter(function(t) {
         if (t.type!=='egym') return false;
-        const td = parseDE(t.date);
+        var td = parseDE(t.date);
         return td && td >= wkDate;
-      }).map(t=>t.date));
-      return egymDays.size;
-    },
-    goal: 2
-  },
-  {
-    id:'wieselflink',
-    name:'WIESELFLINK',
-    desc:'Seil/Rad/Ergo an 2+ verschiedenen Tagen diese Woche',
-    reward:'+50 XP AGI',
-    rewardStat:'A', rewardXP:50,
-    check: () => {
-      const wk = getWeekKey();
-      const wkDate = parseDE(wk);
-      const days = new Set(state.trainings.filter(t => {
-        if (!['seil','bike','ergo'].includes(t.type)) return false;
-        const td = parseDE(t.date);
-        return td && td >= wkDate;
-      }).map(t=>t.date));
+      }).map(function(t){return t.date;}));
       return days.size;
-    },
-    goal: 2
+    }, goal:2
   },
   {
-    id:'bitterer_ernst',
-    name:'BITTERER ERNST',
-    desc:'Heidelberger 5x diese Woche eingenommen',
-    reward:'+50 XP CHA',
-    rewardStat:'C', rewardXP:50,
-    check: () => {
-      const wk = getWeekKey();
-      const wkDate = parseDE(wk);
-      const qs = loadQuestState();
-      return parseInt(qs.checked['heidelberger_count']||0, 10);
-    },
-    goal: 5
+    id:'wieselflink', name:'WIESELFLINK',
+    desc:'Seil/Rad/Ergo an 2+ verschiedenen Tagen diese Woche',
+    reward:'+100 XP', rewardXP:100, rewardStat:'A',
+    check: function() {
+      var wkDate = parseDE(getWeekKey());
+      var days = new Set(state.trainings.filter(function(t) {
+        if (!['seil','bike','ergo'].includes(t.type)) return false;
+        var td = parseDE(t.date);
+        return td && td >= wkDate;
+      }).map(function(t){return t.date;}));
+      return days.size;
+    }, goal:2
   },
   {
-    id:'coop_support',
-    name:'CO-OP SUPPORT',
-    desc:'Frayas Handball begleitet (manuell)',
-    reward:'+50 XP LCK',
-    rewardStat:'L', rewardXP:50,
-    check: () => {
-      const qs = loadQuestState();
-      return qs.checked['coop']?1:0;
-    },
-    goal: 1
+    id:'bitterer_ernst', name:'BITTERER ERNST',
+    desc:'Heidelberger 5x diese Woche',
+    reward:'+100 XP', rewardXP:100, rewardStat:'C',
+    check: function() {
+      var qs = loadQuestState();
+      return parseInt((qs.weekly[getWeekKey()].heidelberger_count)||0, 10);
+    }, goal:5
+  },
+  {
+    id:'coop_support', name:'CO-OP SUPPORT',
+    desc:'Frayas Handball begleitet',
+    reward:'+100 XP', rewardXP:100, rewardStat:'L',
+    check: function() {
+      var qs = loadQuestState();
+      return qs.weekly[getWeekKey()].coop ? 1 : 0;
+    }, goal:1
   },
 ];
 
-const MAIN_QUESTS = [
-  {
-    id:'main_vf',
-    type:'HAUPTQUEST',
-    name:'ABRISS DES DACHSCHADENS',
-    req:'Viszeralfett < 10',
-    check: () => {
-      const vf = parseFloat(state.checkins.findLast(c=>c.visceral&&parseFloat(c.visceral)>0)?.visceral||99);
-      return vf < 10;
+// ---- MILESTONE QUESTS ----
+var MILESTONES = [
+  {id:'whr_093', name:'TAILLE KONTROLLIERT', desc:'WHR < 0.93 erreichen', reward:'+200 XP', rewardXP:200,
+    check: function() {
+      var l = state.checkins.findLast(function(c){return c&&c.taille&&c.huefte&&parseFloat(c.taille)>0;});
+      return l ? parseFloat(l.taille)/parseFloat(l.huefte) < 0.93 : false;
     }
   },
-  {
-    id:'dauerquest_leber',
-    type:'DAUERQUEST',
-    name:'LEBER-RETTER',
-    req:'Permanent aktiv — Cholin + Inositol + Heidelberger',
-    check: () => true
+  {id:'whr_087', name:'SCHLANK & STARK', desc:'WHR < 0.87 erreichen', reward:'+500 XP', rewardXP:500,
+    check: function() {
+      var l = state.checkins.findLast(function(c){return c&&c.taille&&c.huefte&&parseFloat(c.taille)>0;});
+      return l ? parseFloat(l.taille)/parseFloat(l.huefte) < 0.87 : false;
+    }
   },
-  {
-    id:'bonus_handball',
-    type:'BONUS-QUEST',
-    name:'HANDBALL GOMMERN (LEGENDE)',
-    req:'Freischaltung: Viszeralfett < 10',
-    check: () => {
-      const vf = parseFloat(state.checkins.findLast(c=>c.visceral&&parseFloat(c.visceral)>0)?.visceral||99);
-      return vf < 10;
+  {id:'vf_12', name:'ABRISS STUFE 1', desc:'Viszeralfett < 12', reward:'+150 XP', rewardXP:150,
+    check: function() {
+      var l = state.checkins.findLast(function(c){return c&&c.visceral&&parseFloat(c.visceral)>0;});
+      return l ? parseFloat(l.visceral) < 12 : false;
+    }
+  },
+  {id:'vf_11', name:'ABRISS STUFE 2', desc:'Viszeralfett < 11', reward:'+250 XP', rewardXP:250,
+    check: function() {
+      var l = state.checkins.findLast(function(c){return c&&c.visceral&&parseFloat(c.visceral)>0;});
+      return l ? parseFloat(l.visceral) < 11 : false;
+    }
+  },
+  {id:'vf_10', name:'ABRISS STUFE 3', desc:'Viszeralfett < 10', reward:'+400 XP', rewardXP:400,
+    check: function() {
+      var l = state.checkins.findLast(function(c){return c&&c.visceral&&parseFloat(c.visceral)>0;});
+      return l ? parseFloat(l.visceral) < 10 : false;
+    }
+  },
+  {id:'vf_9', name:'ABRISS DES DACHSCHADENS', desc:'Viszeralfett < 9 — FINALE', reward:'+600 XP', rewardXP:600,
+    check: function() {
+      var l = state.checkins.findLast(function(c){return c&&c.visceral&&parseFloat(c.visceral)>0;});
+      return l ? parseFloat(l.visceral) < 9 : false;
     }
   },
 ];
+
+// ---- LEBER-RETTER ----
+function getLeberStreak() {
+  // Zählt aufeinander folgende Tage mit Cholin + Inositol eingenommen
+  var dates = Object.keys(state.supplements).sort(function(a,b){
+    var da=parseDE(a), db=parseDE(b);
+    return db-da; // newest first
+  });
+  var streak = 0;
+  for (var i=0; i<dates.length; i++) {
+    var d = state.supplements[dates[i]];
+    if (d && d['cholin'] && d['inositol']) streak++;
+    else break;
+  }
+  return streak;
+}
+
+function getLatestVF() {
+  var l = state.checkins.findLast(function(c){return c&&c.visceral&&parseFloat(c.visceral)>0;});
+  return l ? parseFloat(l.visceral) : 99;
+}
 
 function claimRaid(id) {
-  const raid = WEEKLY_RAIDS.find(r=>r.id===id);
+  var raid = WEEKLY_RAIDS.find(function(r){return r.id===id;});
   if (!raid) return;
-  const qs = loadQuestState();
-  if (qs.claimed[id]) return;
-  const progress = raid.check();
-  if (progress < raid.goal) { toast('Noch nicht erfüllt','err'); return; }
-  qs.claimed[id] = true;
-  saveQuestState(qs);
-  // Award XP
+  var qs = loadQuestState();
+  var wk = getWeekKey();
+  if (qs.weekly[wk].claimed[id]) return;
+  if (raid.check() < raid.goal) { toast('Noch nicht erfüllt','err'); return; }
+  qs.weekly[wk].claimed[id] = true;
   state.globalXP = (state.globalXP||0) + raid.rewardXP;
   state.statTrainXP[raid.rewardStat] = (state.statTrainXP[raid.rewardStat]||0) + raid.rewardXP;
-  addEv('training', `RAID ABGESCHLOSSEN: ${raid.name} · ${raid.reward}`);
-  toast(`✓ ${raid.reward}`, 'amber');
-  saveState();
-  render();
+  addEv('training', 'RAID: ' + raid.name + ' · ' + raid.reward);
+  toast(raid.reward, 'amber');
+  saveState(); render();
 }
 
-function toggleCoopCheck() {
-  const qs = loadQuestState();
-  qs.checked['coop'] = !qs.checked['coop'];
-  saveQuestState(qs);
-  render();
+function claimMilestone(id) {
+  var ms = MILESTONES.find(function(m){return m.id===id;});
+  if (!ms) return;
+  var qs = loadQuestState();
+  if (qs.milestones[id]) return;
+  if (!ms.check()) { toast('Bedingung nicht erfüllt','err'); return; }
+  qs.milestones[id] = true;
+  state.globalXP = (state.globalXP||0) + ms.rewardXP;
+  addEv('training', 'MILESTONE: ' + ms.name + ' · ' + ms.reward);
+  toast(ms.reward, 'amber');
+  saveState(); render();
 }
 
-function renderQuestPage() {
-  const root = document.getElementById('root');
-  const penSt = checkPenalty();
-  const qs = loadQuestState();
-  const latest = state.checkins[state.checkins.length-1]||{};
-  const visVal = parseFloat(latest.visceral||99);
+function claimLeber(stufe) {
+  var qs = loadQuestState();
+  var streak = getLeberStreak();
+  var vf = getLatestVF();
+  if (stufe===1) {
+    if (qs.leber.claimed1) return;
+    if (streak < 30 || vf >= 12) { toast('Bedingung nicht erfüllt — 30d Streak + VF < 12','err'); return; }
+    qs.leber.claimed1 = true;
+    state.globalXP = (state.globalXP||0) + 300;
+    addEv('training', 'LEBER-RETTER STUFE 1 · +300 XP');
+    toast('+300 XP', 'amber');
+  } else {
+    if (qs.leber.claimed2) return;
+    if (streak < 60 || vf >= 10) { toast('Bedingung nicht erfüllt — 60d Streak + VF < 10','err'); return; }
+    qs.leber.claimed2 = true;
+    state.globalXP = (state.globalXP||0) + 800;
+    addEv('training', 'LEBER-RETTER STUFE 2 · +800 XP');
+    toast('+800 XP', 'amber');
+  }
+  saveState(); render();
+}
 
-  let h = renderHeader('quest.html');
-  if (penSt.active) h += `<div class="penalty-bar">⚠ PANZER ROSTET — ${penSt.days} TAGE INAKTIV</div>`;
+function toggleCoop() {
+  var qs = loadQuestState();
+  var wk = getWeekKey();
+  qs.weekly[wk].coop = !qs.weekly[wk].coop;
+  saveState(); render();
+}
 
+function render() {
+  var root = document.getElementById('root');
+  var qs = loadQuestState();
+  var wk = getWeekKey();
+  var streak = getLeberStreak();
+  var vf = getLatestVF();
+
+  var h = renderHeader('quest.html');
   h += '<div class="scroll"><div class="pad">';
 
-  // HAUPTQUESTS
-  h += '<div class="sec-title">HAUPTQUESTS</div>';
-  MAIN_QUESTS.forEach(q => {
-    const unlocked = q.check();
-    const badgeClass = q.type==='HAUPTQUEST'?'active':q.type==='DAUERQUEST'?'dauerquest':'locked';
-    const symbol = q.type==='HAUPTQUEST'?'!':q.type==='DAUERQUEST'?'~':'★';
-    h += `<div class="quest-card${unlocked?'':' locked'}">
-      <span class="quest-badge ${badgeClass}">[${unlocked?symbol:'?'}]</span>
-      <span class="quest-status ${unlocked?'active':'locked'}">${unlocked?'AKTIV':'GESPERRT'}</span>
-      <div class="quest-name">${q.name}</div>
-      <div class="quest-req">${q.req}</div>
-    </div>`;
+  // LEGENDE STATUS
+  var legendeUnlocked = vf < 9;
+  h += '<div style="border:1px solid ' + (legendeUnlocked?'var(--amber)':'var(--gdim)') + ';padding:8px 12px;margin-bottom:10px;text-align:center;background:' + (legendeUnlocked?'#0a0800':'var(--gfaint)') + '">';
+  h += '<div style="font-family:var(--fontd);font-size:13px;color:' + (legendeUnlocked?'var(--amber)':'var(--gdim)') + ';letter-spacing:3px">LEGENDE</div>';
+  h += '<div style="font-size:8px;color:var(--gdim);margin-top:2px">' + (legendeUnlocked?'STATUS ERREICHT':'Viszeralfett < 9 erforderlich · aktuell: '+vf) + '</div>';
+  h += '</div>';
+
+  // LEBER-RETTER
+  h += '<div class="sec-title" style="border-top:none;margin-top:0">LEBER-RETTER</div>';
+  var leberPairs = [
+    {stufe:1, streakReq:30, vfReq:12, xp:300, claimed:qs.leber.claimed1},
+    {stufe:2, streakReq:60, vfReq:10, xp:800, claimed:qs.leber.claimed2},
+  ];
+  leberPairs.forEach(function(lp) {
+    var streakOk = streak >= lp.streakReq;
+    var vfOk = vf < lp.vfReq;
+    var ready = streakOk && vfOk;
+    var col = lp.claimed?'var(--amber)':ready?'var(--glow)':'var(--gdim)';
+    h += '<div class="quest-card' + (lp.claimed?' done':'') + '" style="border-color:' + col + '">';
+    h += '<span class="quest-badge ' + (lp.claimed?'dauerquest':'active') + '">[LEBER]</span>';
+    h += '<span class="quest-status ' + (lp.claimed?'done':ready?'active':'locked') + '">' + (lp.claimed?'CLAIMED':ready?'CLAIMBAR':'LOCKED') + '</span>';
+    h += '<div class="quest-name">LEBER-RETTER STUFE ' + lp.stufe + '</div>';
+    h += '<div class="quest-req">' + lp.streakReq + 'T Streak (Cholin+Inositol) + VF &lt; ' + lp.vfReq + '</div>';
+    h += '<div class="quest-reward">+' + lp.xp + ' XP</div>';
+    h += '<div class="quest-progress">';
+    h += '<div style="font-size:8px;color:var(--gdim)">Streak: ' + streak + '/' + lp.streakReq + ' · VF: ' + vf + ' (Ziel &lt;' + lp.vfReq + ')</div>';
+    h += '<div class="quest-prog-bar"><div class="quest-prog-fill" style="width:' + Math.min(100,Math.round((streak/lp.streakReq)*100)) + '%;background:' + (streakOk?'var(--glow)':'var(--blue)') + '"></div></div>';
+    h += '</div>';
+    if (ready && !lp.claimed) h += '<button class="btn sm amber" onclick="claimLeber(' + lp.stufe + ')">BELOHNUNG ABHOLEN</button>';
+    h += '</div>';
+  });
+
+  // MEILENSTEINE
+  h += '<div class="sec-title">MEILENSTEINE</div>';
+  MILESTONES.forEach(function(ms) {
+    var fulfilled = ms.check();
+    var claimed = !!qs.milestones[ms.id];
+    var col = claimed?'var(--amber)':fulfilled?'var(--glow)':'var(--gdim)';
+    h += '<div class="quest-card' + (claimed?' done':'') + '" style="border-color:' + col + '">';
+    h += '<span class="quest-badge ' + (claimed?'dauerquest':fulfilled?'active':'locked') + '">[MILESTONE]</span>';
+    h += '<span class="quest-status ' + (claimed?'done':fulfilled?'active':'locked') + '">' + (claimed?'CLAIMED':fulfilled?'CLAIMBAR':'LOCKED') + '</span>';
+    h += '<div class="quest-name">' + ms.name + '</div>';
+    h += '<div class="quest-req">' + ms.desc + '</div>';
+    h += '<div class="quest-reward">' + ms.reward + '</div>';
+    if (fulfilled && !claimed) h += '<button class="btn sm amber" onclick="claimMilestone(\'' + ms.id + '\')">ABHOLEN</button>';
+    h += '</div>';
   });
 
   // WEEKLY RAIDS
-  h += '<div class="sec-title">WEEKLY RAIDS — Woche ${getWeekKey()}</div>'.replace('${getWeekKey()}', getWeekKey());
-  WEEKLY_RAIDS.forEach(raid => {
-    const progress = raid.check();
-    const pct = Math.min(100, Math.round((progress/raid.goal)*100));
-    const done = progress >= raid.goal;
-    const claimed = !!qs.claimed[raid.id];
+  h += '<div class="sec-title">WEEKLY RAIDS — ' + wk + '</div>';
+  WEEKLY_RAIDS.forEach(function(raid) {
+    var progress = raid.check();
+    var pct = Math.min(100, Math.round((progress/raid.goal)*100));
+    var done = progress >= raid.goal;
+    var claimed = !!(qs.weekly[wk].claimed[raid.id]);
+    var col = claimed?'var(--amber)':done?'var(--glow)':'var(--gdim)';
 
-    h += `<div class="quest-card${claimed?' done':''}">
-      <span class="quest-badge weekly">[RAID]</span>
-      <span class="quest-status ${claimed?'done':done?'active':'locked'}">${claimed?'CLAIMED':done?'ABHOLBAR':'IN PROGRESS'}</span>
-      <div class="quest-name">${raid.name}</div>
-      <div class="quest-req">${raid.desc}</div>
-      <div class="quest-reward">${raid.reward}</div>`;
+    h += '<div class="quest-card' + (claimed?' done':'') + '" style="border-color:' + col + '">';
+    h += '<span class="quest-badge weekly">[RAID]</span>';
+    h += '<span class="quest-status ' + (claimed?'done':done?'active':'locked') + '">' + (claimed?'CLAIMED':done?'CLAIMBAR':'IN PROGRESS') + '</span>';
+    h += '<div class="quest-name">' + raid.name + '</div>';
+    h += '<div class="quest-req">' + raid.desc + '</div>';
+    h += '<div class="quest-reward">' + raid.reward + '</div>';
 
     if (raid.id==='coop_support') {
-      h += `<div style="margin-top:6px"><button class="btn sm${qs.checked['coop']?' amber':' ghost'}" onclick="toggleCoopCheck()">
-        ${qs.checked['coop']?'✓ BEGLEITET':'BEGLEITET?'}</button></div>`;
+      h += '<div style="margin-top:6px"><button class="btn sm' + (qs.weekly[wk].coop?' amber':' ghost') + '" onclick="toggleCoop()">' + (qs.weekly[wk].coop?'BEGLEITET':'BEGLEITET?') + '</button></div>';
     } else {
-      h += `<div class="quest-progress">
-        <div style="font-size:8px;color:var(--gdim)">${progress}/${raid.goal}</div>
-        <div class="quest-prog-bar"><div class="quest-prog-fill" style="width:${pct}%"></div></div>
-      </div>`;
+      h += '<div class="quest-progress"><div style="font-size:8px;color:var(--gdim)">' + progress + '/' + raid.goal + '</div>';
+      h += '<div class="quest-prog-bar"><div class="quest-prog-fill" style="width:' + pct + '%"></div></div></div>';
     }
-
-    if (done && !claimed) {
-      h += `<button class="btn sm amber" onclick="claimRaid('${raid.id}')">BELOHNUNG ABHOLEN</button>`;
-    }
-
+    if (done && !claimed) h += '<button class="btn sm amber" onclick="claimRaid(\'' + raid.id + '\')">BELOHNUNG ABHOLEN</button>';
     h += '</div>';
   });
 
@@ -1295,7 +1363,6 @@ function renderQuestPage() {
   root.innerHTML = h;
 }
 
-function render() { renderQuestPage(); }
 render();
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
