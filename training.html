@@ -1003,7 +1003,6 @@ function openBurger(activePage) {
         </div>
       </div>
     </div>
-    <audio id="wp_audio" style="display:none"></audio>
   </div>`;
 
   overlay.innerHTML = h;
@@ -1016,30 +1015,44 @@ function openBurger(activePage) {
   ];
   var wpCurrent = -1;
 
-  window.wpRadioPlay = function(idx) {
-    var audio = document.getElementById('wp_audio');
-    if (!audio) return;
-    if (wpCurrent === idx && !audio.paused) {
-      audio.pause();
-      document.getElementById('wp_icon_'+idx).textContent = '▶';
-      wpCurrent = -1;
-      return;
-    }
-    // Stop other
-    if (wpCurrent >= 0) {
-      var prevIcon = document.getElementById('wp_icon_'+wpCurrent);
-      if (prevIcon) prevIcon.textContent = '▶';
-    }
-    audio.src = wpTracks[idx];
-    audio.play().catch(function(){});
-    document.getElementById('wp_icon_'+idx).textContent = '⏸';
-    wpCurrent = idx;
-    audio.onended = function() {
-      var icon = document.getElementById('wp_icon_'+idx);
-      if (icon) icon.textContent = '▶';
-      wpCurrent = -1;
-    };
-  };
+}
+
+// ---- GLOBAL AUDIO PLAYER ----
+var wpTracks = [
+  'https://raw.githubusercontent.com/NightyPbJM/WastelandPanzerV2/main/Pip-box.mp3',
+  'https://raw.githubusercontent.com/NightyPbJM/WastelandPanzerV2/main/Pip-box%20(1).mp3'
+];
+var wpCurrent = -1;
+var wpAudio = null;
+
+function wpInit() {
+  if (wpAudio) return;
+  wpAudio = document.createElement('audio');
+  wpAudio.id = 'wp_audio';
+  wpAudio.style.display = 'none';
+  document.body.appendChild(wpAudio);
+}
+
+function wpRadioPlay(idx) {
+  wpInit();
+  var audio = wpAudio;
+  // Update icons in burger if open
+  function setIcon(i, icon) {
+    var el = document.getElementById('wp_icon_'+i);
+    if (el) el.textContent = icon;
+  }
+  if (wpCurrent === idx && !audio.paused) {
+    audio.pause();
+    setIcon(idx, '▶');
+    wpCurrent = -1;
+    return;
+  }
+  if (wpCurrent >= 0) setIcon(wpCurrent, '▶');
+  audio.src = wpTracks[idx];
+  audio.play().catch(function(){});
+  setIcon(idx, '⏸');
+  wpCurrent = idx;
+  audio.onended = function() { setIcon(idx, '▶'); wpCurrent = -1; };
 }
 
 // ---- HEADER RENDERER ----
@@ -1066,7 +1079,7 @@ function drawRadar(canvas) {
   const W=canvas.width, H=canvas.height, cx=W/2, cy=H/2, R=Math.min(W,H)*0.37;
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0,0,W,H);
-  const labels=['STR','PER','END','INT','AGI','LCK'];
+  const labels=['STR','PER','END','INT','AGI','LAU'];
   const keys=['S','P','E','I','A','L'];
   const N=6;
   const vals = keys.map(k => state.stats[k]);
@@ -1379,7 +1392,9 @@ function saveBike() {
   var dauer=(document.getElementById('bike_dauer')||{}).value||'';
   var maxSpeed=(document.getElementById('bike_maxspeed')||{}).value||'';
   if (!distanz||!dauer) { toast('Distanz + Dauer erforderlich','err'); return; }
-  processBike({distanz:distanz, dauer:dauer, maxSpeed:maxSpeed});
+  var dauerMin = parseMinSek(dauer);
+  var avgSpeedCalc = dauerMin > 0 ? Math.round((parseFloat(distanz)/(dauerMin/60))*10)/10 : 0;
+  processBike({distanz:distanz, dauer:dauer, maxSpeed:maxSpeed, avgSpeed:avgSpeedCalc});
   closeModal(); toast('Rad gespeichert'); render();
 }
 
