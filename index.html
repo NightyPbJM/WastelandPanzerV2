@@ -1182,10 +1182,9 @@ function render() {
         return;
       }
       const lv = vals[vals.length-1];
-      const half = Math.max(1, Math.floor(vals.length/2));
-      const rA = vals.slice(-half).reduce((s,v)=>s+v,0)/half;
-      const oA = vals.slice(0,half).reduce((s,v)=>s+v,0)/half;
-      const diff = rA-oA;
+      // Trend: erster vs letzter Wert (konsistent mit Anzeige)
+      const first = vals[0];
+      const diff = lv - first;
       const isFlat = Math.abs(diff)<0.3;
       const isPos = tf.lower ? diff<0 : diff>0;
       const arrow = isFlat?'→':diff<0?'↓':'↑';
