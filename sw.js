@@ -1,4 +1,4 @@
-const CACHE = 'wasteland-panzer-v4-0';
+const CACHE = 'wasteland-panzer-v4-3';
 const FILES = ['index.html','training.html','supplements.html','quest.html','balance.html','data.html','log.html','manifest.json','icon-192.svg'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)));
@@ -18,7 +18,7 @@ self.addEventListener('fetch', e => {
           caches.open(CACHE).then(c => c.put(e.request, clone));
         }
         return response;
-      }).catch(() => caches.match(e.request) || caches.match('./index.html'));
+      }).catch(async () => (await caches.match(e.request)) || (await caches.match('./index.html')));
     })
   );
 });
