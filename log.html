@@ -984,8 +984,62 @@ function openBurger(activePage) {
     </div>`;
   }
   h += '</div>';
+  // Audio Player am Ende des Burger-Menüs
+  h += `<div style="border-top:1px solid var(--gdim);padding:14px 16px;background:var(--gfaint);">
+    <div style="font-size:8px;color:var(--gdim);letter-spacing:2px;margin-bottom:8px">WASTELAND RADIO</div>
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--gdim);cursor:pointer;background:var(--g0);" onclick="wpRadioPlay(0)">
+        <div id="wp_icon_0" style="font-size:16px;">▶</div>
+        <div>
+          <div style="font-size:10px;color:var(--tb);">PIP-BOX</div>
+          <div style="font-size:7px;color:var(--gdim);">Track 1</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--gdim);cursor:pointer;background:var(--g0);" onclick="wpRadioPlay(1)">
+        <div id="wp_icon_1" style="font-size:16px;">▶</div>
+        <div>
+          <div style="font-size:10px;color:var(--tb);">WASTELAND</div>
+          <div style="font-size:7px;color:var(--gdim);">Track 2</div>
+        </div>
+      </div>
+    </div>
+    <audio id="wp_audio" style="display:none"></audio>
+  </div>`;
+
   overlay.innerHTML = h;
   document.body.appendChild(overlay);
+
+  // Audio player logic
+  var wpTracks = [
+    'https://raw.githubusercontent.com/NightyPbJM/WastelandPanzerV2/main/Pip-box.mp3',
+    'https://raw.githubusercontent.com/NightyPbJM/WastelandPanzerV2/main/Pip-box%20(1).mp3'
+  ];
+  var wpCurrent = -1;
+
+  window.wpRadioPlay = function(idx) {
+    var audio = document.getElementById('wp_audio');
+    if (!audio) return;
+    if (wpCurrent === idx && !audio.paused) {
+      audio.pause();
+      document.getElementById('wp_icon_'+idx).textContent = '▶';
+      wpCurrent = -1;
+      return;
+    }
+    // Stop other
+    if (wpCurrent >= 0) {
+      var prevIcon = document.getElementById('wp_icon_'+wpCurrent);
+      if (prevIcon) prevIcon.textContent = '▶';
+    }
+    audio.src = wpTracks[idx];
+    audio.play().catch(function(){});
+    document.getElementById('wp_icon_'+idx).textContent = '⏸';
+    wpCurrent = idx;
+    audio.onended = function() {
+      var icon = document.getElementById('wp_icon_'+idx);
+      if (icon) icon.textContent = '▶';
+      wpCurrent = -1;
+    };
+  };
 }
 
 // ---- HEADER RENDERER ----
