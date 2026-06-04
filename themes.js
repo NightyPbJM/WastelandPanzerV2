@@ -1,5 +1,4 @@
 // WASTELAND PANZER — THEMES
-// Neues Theme: Objekt ins Array, alles andere passiert automatisch.
 const WP_THEMES = [
   {
     id: 'amber', label: '🌙 AMBER',
@@ -98,7 +97,7 @@ const WP_THEMES = [
     }
   },
   {
-    id: 'isekai', label: '🪐 ISEKAI OP',
+    id: 'isekai', label: '🪐` ISEKAI OP',
     vars: {
       '--bg0':'#020205','--bg1':'#06060c','--bg2':'#0d0d1a','--bg3':'#14142b',
       '--amber':'#8844ff','--adim':'#4411aa','--afaint':'#0f0521',
