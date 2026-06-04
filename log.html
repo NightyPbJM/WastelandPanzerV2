@@ -14,6 +14,7 @@
 </head>
 <body>
 <div id="root"></div>
+<script src="themes.js"></script>
 <script src="core.js"></script>
 <script>
 
@@ -33,7 +34,7 @@ function render() {
     });
   }
 
-  h += '<div class="page-footer">V5.1 · ' + new Date(document.lastModified).toLocaleDateString('de-DE') + ' ' + new Date(document.lastModified).toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'}) + '</div>';
+  h += '<div class="page-footer">V5.2 · ' + new Date(document.lastModified).toLocaleDateString('de-DE') + ' ' + new Date(document.lastModified).toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'}) + '</div>';
   h += '</div></div>';
   root.innerHTML = h;
 }

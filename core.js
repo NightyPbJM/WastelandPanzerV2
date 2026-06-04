@@ -1,7 +1,7 @@
-// WASTELAND PANZER v5.1 — CORE
+// WASTELAND PANZER v5.2 — CORE
 // ============================================================
 
-const VERSION = '5.1';
+const VERSION = '5.2';
 const VETERAN_YEAR = 1985;
 const VET = (new Date().getFullYear() - VETERAN_YEAR) / 100 + 1;
 const KSM_ON = 56, KSM_OFF = 14;
@@ -725,16 +725,6 @@ const SHARED_CSS = `
   --glow-canvas-fill:rgba(255,170,0,0.12); --glow-canvas-spoke:rgba(255,170,0,0.15);
   --canvas-dot:#ffaa00; --canvas-label:#ccaa77; --canvas-val:#ffcc88;
 }
-[data-theme="panzer"] {
-  --amber:#ff4444; --adim:#662222; --afaint:#1a0808;
-  --text:#cccccc; --tb:#eeeeee;
-  --glow-hi:rgba(255,68,68,0.6); --glow-md:rgba(255,68,68,0.5); --glow-lo:rgba(255,68,68,0.4);
-  --glow-bg:rgba(255,68,68,0.06); --glow-box:rgba(255,68,68,0.15); --glow-press:rgba(255,68,68,0.12);
-  --radius:4px;
-  --glow-canvas-hi:rgba(255,68,68,0.9); --glow-canvas-ring:rgba(255,68,68,0.3); --glow-canvas-dim:rgba(255,68,68,0.1);
-  --glow-canvas-fill:rgba(255,68,68,0.12); --glow-canvas-spoke:rgba(255,68,68,0.15);
-  --canvas-dot:#ff4444; --canvas-label:#cccccc; --canvas-val:#ff8888;
-}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;background:var(--bg0);color:var(--text);font-family:var(--font);overflow:hidden;}
 body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 50% 20%,var(--glow-bg) 0%,transparent 65%);pointer-events:none;z-index:0;}
@@ -1051,21 +1041,19 @@ function openBurger(activePage) {
     </div>
   </div>`;
 
-  // THEME
+  // THEME — dynamisch aus themes.js
   const ct = getTheme();
-  h += `<div style="border-top:1px solid var(--adim);padding:14px 16px;">
-    <div style="font-size:8px;color:var(--adim);letter-spacing:2px;margin-bottom:8px">🎨 THEME</div>
-    <div style="display:flex;gap:6px;">
-      <button onclick="setTheme('amber');this.closest('.burger-overlay').remove()"
-        style="flex:1;padding:10px 6px;border:1px solid ${ct==='amber'?'var(--amber)':'var(--adim)'};background:${ct==='amber'?'var(--afaint)':'transparent'};color:${ct==='amber'?'var(--amber)':'var(--adim)'};font-family:var(--font);font-size:9px;letter-spacing:1px;cursor:pointer;">
-        🌙 AMBER
-      </button>
-      <button onclick="setTheme('panzer');this.closest('.burger-overlay').remove()"
-        style="flex:1;padding:10px 6px;border:1px solid ${ct==='panzer'?'#ff4444':'var(--adim)'};background:${ct==='panzer'?'#1a0808':'transparent'};color:${ct==='panzer'?'#ff4444':'var(--adim)'};font-family:var(--font);font-size:9px;letter-spacing:1px;cursor:pointer;">
-        ☢️ PANZER
-      </button>
-    </div>
-  </div>`;
+  if (typeof WP_THEMES !== 'undefined') {
+    let th = '<div style="border-top:1px solid var(--adim);padding:14px 16px;">';
+    th += '<div style="font-size:8px;color:var(--adim);letter-spacing:2px;margin-bottom:8px">🎨 THEME</div>';
+    th += '<div style="display:flex;gap:6px;flex-wrap:wrap;">';
+    WP_THEMES.forEach(function(t) {
+      const active = ct === t.id;
+      th += '<button onclick="setTheme(\'' + t.id + '\');this.closest(\'.burger-overlay\').remove()" style="flex:1;min-width:60px;padding:10px 6px;border:1px solid ' + (active?'var(--amber)':'var(--adim)') + ';background:' + (active?'var(--afaint)':'transparent') + ';color:' + (active?'var(--amber)':'var(--adim)') + ';font-family:var(--font);font-size:9px;letter-spacing:1px;cursor:pointer;">' + t.label + '</button>';
+    });
+    th += '</div></div>';
+    h += th;
+  }
   h += '</div>';
   overlay.innerHTML = h;
   document.body.appendChild(overlay);
@@ -1236,7 +1224,20 @@ function getTheme() { return localStorage.getItem('wp_theme') || 'amber'; }
 function setTheme(t) {
   localStorage.setItem('wp_theme', t);
   document.documentElement.setAttribute('data-theme', t);
+  if (typeof render === 'function') render();
+}
+function applyThemes() {
+  let css = '';
+  WP_THEMES.forEach(t => {
+    css += '[data-theme="' + t.id + '"] {';
+    Object.entries(t.vars).forEach(function(e) { css += e[0] + ':' + e[1] + ';'; });
+    css += '}';
+  });
+  const s = document.createElement('style');
+  s.id = 'wp-themes'; s.textContent = css;
+  document.head.appendChild(s);
 }
 
 document.querySelector('style').textContent = SHARED_CSS;
-setTheme(getTheme()); // init theme on load
+if (typeof WP_THEMES !== 'undefined') applyThemes();
+setTheme(getTheme());
