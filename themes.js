@@ -1,4 +1,4 @@
-// WASTELAND PANZER — THEMES v5.2
+// WASTELAND PANZER — THEMES
 // Neues Theme: Objekt ins Array, alles andere passiert automatisch.
 const WP_THEMES = [
   {
@@ -44,6 +44,21 @@ const WP_THEMES = [
       '--glow-canvas-spoke':'rgba(68,255,136,0.15)',
       '--canvas-dot':'#44ff88','--canvas-label':'#aaffcc','--canvas-val':'#ccffdd',
       '--radius':'2px'
+    }
+  },
+  {
+    id: 'telekom', label: '📶 TELEKOM',
+    vars: {
+      '--amber':'#e20074','--adim':'#8c0048','--afaint':'#1a0010',
+      '--text':'#cccccc','--tb':'#ffffff',
+      '--glow-hi':'rgba(226,0,116,0.7)','--glow-md':'rgba(226,0,116,0.55)',
+      '--glow-lo':'rgba(226,0,116,0.4)','--glow-bg':'rgba(226,0,116,0.07)',
+      '--glow-box':'rgba(226,0,116,0.18)','--glow-press':'rgba(226,0,116,0.14)',
+      '--glow-canvas-hi':'rgba(226,0,116,0.95)','--glow-canvas-ring':'rgba(226,0,116,0.35)',
+      '--glow-canvas-dim':'rgba(226,0,116,0.12)','--glow-canvas-fill':'rgba(226,0,116,0.1)',
+      '--glow-canvas-spoke':'rgba(226,0,116,0.18)',
+      '--canvas-dot':'#e20074','--canvas-label':'#cc88aa','--canvas-val':'#ffffff',
+      '--radius':'4px'
     }
   }
 ];
