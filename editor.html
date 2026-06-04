@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#050505">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WASTELAND PANZER">
+<title>THEME EDITOR — WASTELAND PANZER</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<link rel="manifest" href="./manifest.json">
+<style>/* injected */</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="themes.js"></script>
+<script src="core.js"></script>
+<script>
+
+// ---- THEME EDITOR PAGE ----
+
+let edit = { editingId:null, name:'', mode:'quick', primary:'#ffaa00', bgDark:true, radius:4, full:{} };
+
+// 6-stelligen Hex für <input type=color> sicherstellen
+function safeHex(v, fallback) {
+  if (!v) return fallback;
+  v = String(v).trim();
+  if (/^#?[0-9a-fA-F]{3}$/.test(v)) { v=v.replace('#',''); return '#'+v.split('').map(c=>c+c).join(''); }
+  if (/^#?[0-9a-fA-F]{6}$/.test(v)) return v[0]==='#'?v:'#'+v;
+  return fallback;
+}
+
+// State-Setter ohne re-render (Picker behält Fokus); aktualisiert Hex-Label live
+function editSet(field, val) {
+  if (field === '__primary') { edit.primary = val; }
+  else { edit.full[field] = val; }
+  const lbl = document.getElementById('hx_'+field);
+  if (lbl) lbl.textContent = val.toUpperCase();
+}
+
+function editMode(m) { edit.mode = m; render(); }
+function editBg(d) { edit.bgDark = d; render(); }
+
+function buildThemeFromEdit() {
+  const name = (document.getElementById('th_name')||{}).value || edit.name || 'Custom';
+  const rad = parseInt((document.getElementById('th_radius')||{}).value, 10);
+  const id = edit.editingId || ('custom_' + Date.now());
+  const opts = { bgDark: edit.bgDark, radius: isNaN(rad)?4:rad, mode: edit.mode };
+  if (edit.mode === 'full') opts.full = edit.full;
+  const t = generateTheme(id, '🎨 ' + name, edit.primary, opts);
+  t.name = name; t.mode = edit.mode;
+  return t;
+}
+
+function previewTheme() {
+  const t = buildThemeFromEdit();
+  // temporär in WP_THEMES (ohne speichern) + anwenden
+  for (let i=WP_THEMES.length-1;i>=0;i--){ if(WP_THEMES[i].id===t.id) WP_THEMES.splice(i,1); }
+  WP_THEMES.push(t);
+  applyThemes();
+  document.documentElement.setAttribute('data-theme', t.id);
+  toast('👁 Vorschau aktiv — noch nicht gespeichert');
+}
+
+function saveTheme() {
+  const name = (document.getElementById('th_name')||{}).value.trim();
+  if (!name) { toast('⚠ Bitte einen Namen eingeben'); return; }
+  const t = buildThemeFromEdit();
+  let customs = getCustomThemes();
+  const existingIdx = customs.findIndex(function(c){return c.id===t.id;});
+  if (existingIdx >= 0) {
+    customs[existingIdx] = t; // editieren
+  } else {
+    if (customs.length >= MAX_CUSTOM_THEMES) {
+      toast('⚠ Maximal ' + MAX_CUSTOM_THEMES + ' eigene Themes — lösche erst eins');
+      return;
+    }
+    customs.push(t); // neu
+  }
+  saveCustomThemesArr(customs);
+  loadCustomThemes();
+  applyThemes();
+  setTheme(t.id); // aktivieren (ruft render)
+  edit = { editingId:null, name:'', mode:'quick', primary:'#ffaa00', bgDark:true, radius:4, full:{} };
+  render();
+  toast('✓ "' + name + '" gespeichert & aktiviert');
+}
+
+function editTheme(id) {
+  const t = getCustomThemes().find(function(c){return c.id===id;});
+  if (!t) return;
+  edit = {
+    editingId: t.id, name: t.name || (t.label||'').replace('🎨 ',''),
+    mode: t.mode || 'full', primary: safeHex(t.primary || t.vars['--amber'], '#ffaa00'),
+    bgDark: t.bgDark !== false, radius: (t.radius!==undefined?t.radius:4),
+    full: Object.assign({}, t.vars)
+  };
+  document.querySelector('.scroll').scrollTop = 0;
+  render();
+}
+
+function deleteTheme(id) {
+  if (!confirm('Dieses Theme wirklich löschen?')) return;
+  let customs = getCustomThemes().filter(function(c){return c.id!==id;});
+  saveCustomThemesArr(customs);
+  // Falls aktuelles Theme gelöscht → Amber
+  if (getTheme() === id) { localStorage.setItem('wp_theme','amber'); }
+  loadCustomThemes();
+  applyThemes();
+  if (edit.editingId === id) edit = { editingId:null, name:'', mode:'quick', primary:'#ffaa00', bgDark:true, radius:4, full:{} };
+  setTheme(getTheme());
+  render();
+  toast('🗑 Theme gelöscht');
+}
+
+function exportTheme() {
+  const t = buildThemeFromEdit();
+  // Export-Objekt sauber (ohne interne Hilfsfelder)
+  const clean = { id: t.id, label: t.label, vars: t.vars };
+  const json = JSON.stringify(clean, null, 2);
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay';
+  ov.onclick = function(e){ if(e.target===ov) ov.remove(); };
+  ov.innerHTML = '<div class="modal"><div class="modal-title">📋 THEME EXPORT</div>'
+    + '<div style="font-size:9px;color:var(--adim);margin-bottom:8px">In themes.js ins WP_THEMES-Array einfügen:</div>'
+    + '<textarea id="exp_ta" readonly style="width:100%;height:230px;background:var(--bg0);color:var(--text);border:1px solid var(--adim);font-family:var(--font);font-size:10px;padding:8px;border-radius:var(--radius);resize:none">' + json + '</textarea>'
+    + '<div style="display:flex;gap:8px;margin-top:10px">'
+    + '<button class="btn" style="flex:1" onclick="navigator.clipboard&&navigator.clipboard.writeText(document.getElementById(\'exp_ta\').value).then(function(){toast(\'✓ Kopiert\')}).catch(function(){toast(\'Manuell markieren & kopieren\')})">KOPIEREN</button>'
+    + '<button class="btn" style="flex:1" onclick="this.closest(\'.modal-overlay\').remove()">SCHLIESSEN</button>'
+    + '</div></div>';
+  document.body.appendChild(ov);
+}
+
+function importTheme() {
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay';
+  ov.onclick = function(e){ if(e.target===ov) ov.remove(); };
+  ov.innerHTML = '<div class="modal"><div class="modal-title">📥 THEME IMPORTIEREN</div>'
+    + '<div style="font-size:9px;color:var(--adim);margin-bottom:8px">JSON einfügen (aus Export oder themes.js):</div>'
+    + '<textarea id="imp_ta" placeholder=\'{"id":"...","label":"...","vars":{...}}\' style="width:100%;height:230px;background:var(--bg0);color:var(--text);border:1px solid var(--adim);font-family:var(--font);font-size:10px;padding:8px;border-radius:var(--radius);resize:none"></textarea>'
+    + '<div style="display:flex;gap:8px;margin-top:10px">'
+    + '<button class="btn" style="flex:1" onclick="(function(){const ta=document.getElementById(\'imp_ta\'),txt=ta.value.trim();if(!txt){toast(\'⚠ Bitte JSON einfügen\');return;}try{const j=JSON.parse(txt);if(!j.id||!j.label||!j.vars){toast(\'⚠ Ungültiges Format (id, label, vars erforderlich)\');return;}if(!j.vars[\'--amber\']){toast(\'⚠ --amber (Primärfarbe) erforderlich\');return;}edit={editingId:null,name:j.label.replace(/🎨 /,\'\'),mode:\'full\',primary:j.vars[\'--amber\'],bgDark:j.vars[\'--bg0\']==\'#050505\',radius:4,full:Object.assign({},j.vars)};document.querySelector(\'.modal-overlay\').remove();render();toast(\'✓ Theme geladen – dann speichern um zu aktivieren\');}catch(e){toast(\'⚠ JSON-Fehler: \'+e.message);}}})()">LADEN</button>'
+    + '<button class="btn" style="flex:1" onclick="this.closest(\'.modal-overlay\').remove()">ABBRECHEN</button>'
+    + '</div></div>';
+  document.body.appendChild(ov);
+}
+
+// ---- Render-Helpers ----
+function colorRow(field, label, val) {
+  const hx = safeHex(val, '#888888');
+  return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">'
+    + '<input type="color" value="' + hx + '" oninput="editSet(\'' + field + '\',this.value)" '
+    +   'style="width:42px;height:34px;border:1px solid var(--adim);background:transparent;border-radius:var(--radius);padding:2px;cursor:pointer;flex-shrink:0">'
+    + '<div style="flex:1;min-width:0">'
+    +   '<div style="font-size:10px;color:var(--text)">' + label + '</div>'
+    +   '<div id="hx_' + field + '" style="font-size:8px;color:var(--adim);letter-spacing:1px">' + hx.toUpperCase() + '</div>'
+    + '</div></div>';
+}
+
+function render() {
+  const root = document.getElementById('root');
+  let h = renderHeader('editor.html');
+  h += '<div class="scroll"><div class="pad">';
+  h += '<div class="sec-title" style="border-top:none;margin-top:0">🎨 THEME EDITOR</div>';
+
+  // ── Bestehende Custom-Themes ──
+  const customs = getCustomThemes();
+  h += '<div style="font-size:9px;color:var(--adim);letter-spacing:1px;margin-bottom:8px">// EIGENE THEMES (' + customs.length + '/' + MAX_CUSTOM_THEMES + ')</div>';
+  if (customs.length) {
+    customs.forEach(function(c) {
+      const sw = c.vars['--amber'] || '#888';
+      const isActive = getTheme() === c.id;
+      h += '<div class="card" style="display:flex;align-items:center;gap:10px;">'
+        + '<div style="width:22px;height:22px;border-radius:50%;background:' + sw + ';box-shadow:0 0 8px ' + sw + ';flex-shrink:0"></div>'
+        + '<div style="flex:1;min-width:0">'
+        +   '<div style="font-size:12px;color:var(--tb)">' + (c.name || c.label) + (isActive?' <span style="color:var(--amber);font-size:8px">● AKTIV</span>':'') + '</div>'
+        + '</div>'
+        + '<button class="btn" style="padding:6px 10px;font-size:9px" onclick="setTheme(\'' + c.id + '\')">AN</button>'
+        + '<button class="btn" style="padding:6px 10px;font-size:9px" onclick="editTheme(\'' + c.id + '\')">✎</button>'
+        + '<button class="btn" style="padding:6px 10px;font-size:9px" onclick="deleteTheme(\'' + c.id + '\')">🗑</button>'
+        + '</div>';
+    });
+  } else {
+    h += '<div style="color:var(--adim);font-size:9px;margin-bottom:6px">// Noch keine eigenen Themes</div>';
+  }
+
+  // ── Editor-Formular ──
+  h += '<div class="sec-title">' + (edit.editingId ? '✎ THEME BEARBEITEN' : '+ NEUES THEME') + '</div>';
+
+  // Name
+  h += '<div style="margin-bottom:12px">'
+    + '<div style="font-size:9px;color:var(--adim);letter-spacing:1px;margin-bottom:4px">NAME</div>'
+    + '<input id="th_name" type="text" value="' + (edit.name||'').replace(/"/g,'&quot;') + '" placeholder="z.B. Cyber Punk" '
+    +   'style="width:100%;background:var(--bg0);color:var(--tb);border:1px solid var(--adim);font-family:var(--font);font-size:13px;padding:9px;border-radius:var(--radius)">'
+    + '</div>';
+
+  // Mode-Toggle
+  h += '<div style="display:flex;gap:6px;margin-bottom:14px">'
+    + '<button class="btn" style="flex:1;' + (edit.mode==='quick'?'background:var(--afaint);color:var(--amber)':'') + '" onclick="editMode(\'quick\')">⚡ QUICK</button>'
+    + '<button class="btn" style="flex:1;' + (edit.mode==='full'?'background:var(--afaint);color:var(--amber)':'') + '" onclick="editMode(\'full\')">🔧 FULL CONTROL</button>'
+    + '</div>';
+
+  if (edit.mode === 'quick') {
+    // Quick: nur Primärfarbe + BG-Toggle + Radius
+    h += colorRow('__primary', 'Primärfarbe', edit.primary);
+    h += '<div style="font-size:8px;color:var(--adim);margin:-2px 0 14px 52px">Alle anderen Farben werden automatisch abgeleitet</div>';
+    // BG dark/light
+    h += '<div style="font-size:9px;color:var(--adim);letter-spacing:1px;margin-bottom:6px">HINTERGRUND</div>'
+      + '<div style="display:flex;gap:6px;margin-bottom:14px">'
+      + '<button class="btn" style="flex:1;' + (edit.bgDark?'background:var(--afaint);color:var(--amber)':'') + '" onclick="editBg(true)">🌑 DUNKEL</button>'
+      + '<button class="btn" style="flex:1;' + (!edit.bgDark?'background:var(--afaint);color:var(--amber)':'') + '" onclick="editBg(false)">☀️ HELL</button>'
+      + '</div>';
+  } else {
+    // Full: alle THEME_FIELDS (Glows leiten sich aus Primärfarbe ab)
+    THEME_FIELDS.forEach(function(f) {
+      const cur = edit.full[f[0]] || (f[0]==='--amber'?edit.primary:'');
+      h += colorRow(f[0], f[1], cur || '#888888');
+    });
+    h += '<div style="font-size:8px;color:var(--adim);margin:2px 0 14px 0">💡 Glow-Effekte werden automatisch aus der Primärfarbe berechnet</div>';
+  }
+
+  // Radius
+  h += '<div style="font-size:9px;color:var(--adim);letter-spacing:1px;margin-bottom:4px">ECKEN-RUNDUNG: <span id="rad_val">' + edit.radius + '</span>px</div>'
+    + '<input id="th_radius" type="range" min="0" max="12" value="' + edit.radius + '" oninput="document.getElementById(\'rad_val\').textContent=this.value" '
+    +   'style="width:100%;accent-color:var(--amber);margin-bottom:18px">';
+
+  // Aktionen
+  h += '<div style="display:flex;gap:6px;margin-bottom:8px">'
+    + '<button class="btn" style="flex:1" onclick="previewTheme()">👁 VORSCHAU</button>'
+    + '<button class="btn" style="flex:1" onclick="importTheme()">📥 IMPORT</button>'
+    + '<button class="btn" style="flex:1" onclick="exportTheme()">📋 EXPORT</button>'
+    + '</div>';
+  h += '<button class="btn" style="width:100%;background:var(--afaint);color:var(--amber);padding:12px;font-size:13px" onclick="saveTheme()">💾 SPEICHERN & AKTIVIEREN</button>';
+  if (edit.editingId) {
+    h += '<button class="btn" style="width:100%;margin-top:8px" onclick="edit={editingId:null,name:\'\',mode:\'quick\',primary:\'#ffaa00\',bgDark:true,radius:4,full:{}};render()">ABBRECHEN</button>';
+  }
+
+  h += '<div class="page-footer">V5.4 · ' + new Date(document.lastModified).toLocaleDateString('de-DE') + ' ' + new Date(document.lastModified).toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'}) + '</div>';
+  h += '</div></div>';
+  root.innerHTML = h;
+}
+
+render();
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+</script>
+</body>
+</html>

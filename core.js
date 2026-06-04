@@ -1,7 +1,7 @@
-// WASTELAND PANZER v5.3 — CORE
+// WASTELAND PANZER v5.4 — CORE
 // ============================================================
 
-const VERSION = '5.3';
+const VERSION = '5.4';
 const VETERAN_YEAR = 1985;
 const VET = (new Date().getFullYear() - VETERAN_YEAR) / 100 + 1;
 const KSM_ON = 56, KSM_OFF = 14;
@@ -1002,6 +1002,7 @@ const NAV_ITEMS = [
   {href:'balance.html',     icon:'⚖️', label:'BALANCE'},
   {href:'quest.html',       icon:'⚔️', label:'QUESTS'},
   {href:'hall.html',        icon:'🏆', label:'HALL OF FAME'},
+  {href:'editor.html',      icon:'🎨', label:'THEME EDITOR'},
   {href:'data.html',        icon:'📊', label:'DATEN'},
   {href:'log.html',         icon:'📋', label:'LOG'},
 ];
@@ -1221,13 +1222,140 @@ function validateCheckin(f) {
 
 
 // ---- THEME ----
+// ============ THEME ENGINE ============
+const CUSTOM_THEME_KEY = 'wp_custom_themes';
+const MAX_CUSTOM_THEMES = 3;
+// Welche Felder der Full-Editor steuert (Reihenfolge = Anzeige-Reihenfolge)
+const THEME_FIELDS = [
+  ['--amber','Primärfarbe'], ['--adim','Gedimmt (Borders)'], ['--afaint','Karten-BG'],
+  ['--text','Text'], ['--tb','Text hell'],
+  ['--bg0','Hintergrund 0'], ['--bg1','Hintergrund 1'], ['--bg2','Hintergrund 2'], ['--bg3','Hintergrund 3'],
+  ['--canvas-dot','Radar-Punkt'], ['--canvas-label','Radar-Label'], ['--canvas-val','Radar-Wert']
+];
+
+// ---- Farb-Utils ----
+function hexToRgb(hex) {
+  hex = String(hex).replace('#','');
+  if (hex.length===3) hex = hex.split('').map(c=>c+c).join('');
+  const n = parseInt(hex,16);
+  return {r:(n>>16)&255, g:(n>>8)&255, b:n&255};
+}
+function rgbToHex(r,g,b) {
+  return '#' + [r,g,b].map(x=>Math.max(0,Math.min(255,Math.round(x))).toString(16).padStart(2,'0')).join('');
+}
+function rgbToHsl(r,g,b) {
+  r/=255;g/=255;b/=255;
+  const max=Math.max(r,g,b),min=Math.min(r,g,b);
+  let h=0,s=0,l=(max+min)/2;
+  if(max!==min){
+    const d=max-min;
+    s = l>0.5 ? d/(2-max-min) : d/(max+min);
+    if(max===r) h=(g-b)/d+(g<b?6:0);
+    else if(max===g) h=(b-r)/d+2;
+    else h=(r-g)/d+4;
+    h/=6;
+  }
+  return {h:h*360, s:s*100, l:l*100};
+}
+function hslToRgb(h,s,l) {
+  h/=360;s/=100;l/=100;
+  let r,g,b;
+  if(s===0){r=g=b=l;}
+  else{
+    const hue2rgb=(p,q,t)=>{
+      if(t<0)t+=1; if(t>1)t-=1;
+      if(t<1/6)return p+(q-p)*6*t;
+      if(t<1/2)return q;
+      if(t<2/3)return p+(q-p)*(2/3-t)*6;
+      return p;
+    };
+    const q=l<0.5?l*(1+s):l+s-l*s, p=2*l-q;
+    r=hue2rgb(p,q,h+1/3); g=hue2rgb(p,q,h); b=hue2rgb(p,q,h-1/3);
+  }
+  return {r:r*255,g:g*255,b:b*255};
+}
+function adjustHSL(hex, newL, newS) {
+  const c = hexToRgb(hex), hsl = rgbToHsl(c.r,c.g,c.b);
+  const o = hslToRgb(hsl.h, newS!==undefined?newS:hsl.s, newL);
+  return rgbToHex(o.r,o.g,o.b);
+}
+
+// ---- Generator: aus 1 Primärfarbe alle Werte ableiten ----
+// opts: {bgDark:bool, radius:num, full:{'--feld':wert,...}}
+function generateTheme(id, label, primaryHex, opts) {
+  opts = opts || {};
+  const c = hexToRgb(primaryHex), hsl = rgbToHsl(c.r,c.g,c.b);
+  const rgbStr = c.r+','+c.g+','+c.b;
+  const dark = opts.bgDark !== false;
+  const base = {
+    '--bg0': dark?'#050505':'#f5f5f5', '--bg1': dark?'#0a0a0a':'#ebebeb',
+    '--bg2': dark?'#111111':'#dcdcdc', '--bg3': dark?'#1a1a1a':'#cccccc',
+    '--amber': primaryHex,
+    '--adim': adjustHSL(primaryHex, 30, Math.max(20, hsl.s*0.7)),
+    '--afaint': dark ? adjustHSL(primaryHex, 7, hsl.s*0.5) : adjustHSL(primaryHex, 95, hsl.s*0.35),
+    '--text': dark ? adjustHSL(primaryHex, 78, Math.min(55, hsl.s*0.55)) : '#333333',
+    '--tb': dark ? adjustHSL(primaryHex, 90, Math.min(75, hsl.s*0.8)) : '#111111',
+    '--glow-hi':'rgba('+rgbStr+',0.6)','--glow-md':'rgba('+rgbStr+',0.5)',
+    '--glow-lo':'rgba('+rgbStr+',0.4)','--glow-bg':'rgba('+rgbStr+',0.06)',
+    '--glow-box':'rgba('+rgbStr+',0.15)','--glow-press':'rgba('+rgbStr+',0.12)',
+    '--glow-canvas-hi':'rgba('+rgbStr+',0.9)','--glow-canvas-ring':'rgba('+rgbStr+',0.3)',
+    '--glow-canvas-dim':'rgba('+rgbStr+',0.1)','--glow-canvas-fill':'rgba('+rgbStr+',0.12)',
+    '--glow-canvas-spoke':'rgba('+rgbStr+',0.15)',
+    '--canvas-dot': primaryHex,
+    '--canvas-label': dark ? adjustHSL(primaryHex, 75, 40) : '#666666',
+    '--canvas-val': dark ? '#ffffff' : primaryHex,
+    '--radius': (opts.radius!==undefined ? opts.radius : 4) + 'px'
+  };
+  // Full-Mode Overrides: einzelne Felder ersetzen + abhängige Glows neu ableiten
+  if (opts.full) {
+    Object.keys(opts.full).forEach(function(k){ if(opts.full[k]) base[k] = opts.full[k]; });
+    // Wenn Primärfarbe im Full-Mode geändert: Glows daran anpassen
+    if (opts.full['--amber']) {
+      const fc = hexToRgb(opts.full['--amber']), fs = fc.r+','+fc.g+','+fc.b;
+      base['--glow-hi']='rgba('+fs+',0.6)'; base['--glow-md']='rgba('+fs+',0.5)';
+      base['--glow-lo']='rgba('+fs+',0.4)'; base['--glow-bg']='rgba('+fs+',0.06)';
+      base['--glow-box']='rgba('+fs+',0.15)'; base['--glow-press']='rgba('+fs+',0.12)';
+      base['--glow-canvas-hi']='rgba('+fs+',0.9)'; base['--glow-canvas-ring']='rgba('+fs+',0.3)';
+      base['--glow-canvas-dim']='rgba('+fs+',0.1)'; base['--glow-canvas-fill']='rgba('+fs+',0.12)';
+      base['--glow-canvas-spoke']='rgba('+fs+',0.15)';
+    }
+  }
+  return { id:id, label:label, custom:true, primary:primaryHex,
+           bgDark:dark, radius:(opts.radius!==undefined?opts.radius:4), vars:base };
+}
+
+// ---- Custom-Theme Storage ----
+function getCustomThemes() {
+  try {
+    const arr = JSON.parse(localStorage.getItem(CUSTOM_THEME_KEY) || '[]');
+    return Array.isArray(arr) ? arr : [];
+  } catch(e) { return []; }
+}
+function saveCustomThemesArr(arr) {
+  localStorage.setItem(CUSTOM_THEME_KEY, JSON.stringify(arr.slice(0, MAX_CUSTOM_THEMES)));
+}
+function loadCustomThemes() {
+  if (typeof WP_THEMES === 'undefined') return;
+  // Alte Custom-Themes aus WP_THEMES entfernen (idempotent)
+  for (let i=WP_THEMES.length-1; i>=0; i--) { if (WP_THEMES[i].custom) WP_THEMES.splice(i,1); }
+  // Aktuelle aus localStorage anhängen
+  getCustomThemes().forEach(function(t){ if(t && t.id && t.vars) WP_THEMES.push(t); });
+}
+
 function getTheme() { return localStorage.getItem('wp_theme') || 'amber'; }
 function setTheme(t) {
+  // Fehler-Fallback: Theme existiert nicht → Amber + Meldung
+  if (typeof WP_THEMES !== 'undefined' && !WP_THEMES.find(function(x){return x.id===t;})) {
+    t = 'amber';
+    if (typeof toast === 'function') toast('⚠ Theme nicht gefunden — zurück zu Amber');
+  }
   localStorage.setItem('wp_theme', t);
   document.documentElement.setAttribute('data-theme', t);
   if (typeof render === 'function') render();
 }
 function applyThemes() {
+  const old = document.getElementById('wp-themes');
+  if (old) old.remove();
   let css = '';
   WP_THEMES.forEach(t => {
     css += '[data-theme="' + t.id + '"] {';
@@ -1240,5 +1368,13 @@ function applyThemes() {
 }
 
 document.querySelector('style').textContent = SHARED_CSS;
-if (typeof WP_THEMES !== 'undefined') applyThemes();
-setTheme(getTheme());
+if (typeof WP_THEMES !== 'undefined') {
+  loadCustomThemes();
+  applyThemes();
+  // Validierung: gewähltes Theme existiert noch?
+  let cur = getTheme();
+  if (!WP_THEMES.find(function(x){return x.id===cur;})) {
+    cur = 'amber'; localStorage.setItem('wp_theme','amber');
+  }
+  document.documentElement.setAttribute('data-theme', cur);
+}
