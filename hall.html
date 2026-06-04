@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#050505">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WASTELAND PANZER">
+<title>HALL OF FAME — WASTELAND PANZER</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<link rel="manifest" href="./manifest.json">
+<style>/* injected */</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="themes.js"></script>
+<script src="core.js"></script>
+<script>
+
+// ---- HALL OF FAME PAGE ----
+
+function hofBlock(title, entries, fmt, sub) {
+  let b = '<div class="sec-title">' + title + '</div>';
+  if (!entries.length) {
+    b += '<div style="color:var(--adim);font-size:9px;margin-bottom:6px">// Noch keine Daten</div>';
+    return b;
+  }
+  const medals = ['🥇','🥈','🥉'];
+  entries.slice(0,3).forEach((e,i) => {
+    b += '<div class="card" style="display:flex;align-items:center;gap:12px;">'
+      +    '<div style="font-size:20px;width:24px;text-align:center">' + medals[i] + '</div>'
+      +    '<div style="flex:1;min-width:0">'
+      +      '<div style="font-family:var(--fontd);font-weight:700;font-size:17px;color:var(--tb);text-shadow:0 0 10px var(--glow-md)">' + fmt(e) + '</div>'
+      +      '<div style="font-size:8px;color:var(--adim);letter-spacing:1px;margin-top:2px">' + (sub ? sub(e) + ' · ' : '') + e.date + '</div>'
+      +    '</div>'
+      +  '</div>';
+  });
+  return b;
+}
+
+function render() {
+  const root = document.getElementById('root');
+  let h = renderHeader('hall.html');
+  h += '<div class="scroll"><div class="pad">';
+  h += '<div class="sec-title" style="border-top:none;margin-top:0">🏆 HALL OF FAME</div>';
+  h += '<div style="font-size:9px;color:var(--adim);letter-spacing:1px;margin-bottom:10px">// Deine besten Ergebnisse aller Zeiten</div>';
+
+  const tr = state.trainings || [];
+
+  // EGYM — Top 3 nach Score
+  const egym = tr.filter(t => t.type === 'egym' && (t.score||0) > 0)
+    .sort((a,b) => b.score - a.score);
+  h += hofBlock('🏋 EGYM SCORE', egym,
+    e => e.score.toLocaleString('de-DE'));
+
+  // SCHRITTE — Top 3 Tage
+  const steps = (state.checkins || [])
+    .filter(c => c && parseInt(c.schritte,10) > 0)
+    .map(c => ({date:c.date, schritte:parseInt(c.schritte,10)}))
+    .sort((a,b) => b.schritte - a.schritte);
+  h += hofBlock('👟 SCHRITTE / TAG', steps,
+    e => e.schritte.toLocaleString('de-DE') + ' Schritte');
+
+  // FAHRRAD — Top 3 nach Session-Score (XP)
+  const bike = tr.filter(t => t.type === 'bike' && (t.sessionXP||0) > 0)
+    .sort((a,b) => (b.sessionXP||0) - (a.sessionXP||0));
+  h += hofBlock('🚴 FAHRRAD SCORE', bike,
+    e => (e.sessionXP||0).toLocaleString('de-DE') + ' XP',
+    e => e.distanz + 'km · ' + e.avgSpeed + 'km/h Ø');
+
+  // SEIL — Top 3 nach RPM
+  const seil = tr.filter(t => t.type === 'seil' && (t.rpm||0) > 0)
+    .sort((a,b) => (b.rpm||0) - (a.rpm||0));
+  h += hofBlock('🪢 SEIL RPM', seil,
+    e => e.rpm + ' RPM',
+    e => formatMinSek(e.dauer) + 'min');
+
+  h += '<div class="page-footer">V5.3 · ' + new Date(document.lastModified).toLocaleDateString('de-DE') + ' ' + new Date(document.lastModified).toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'}) + '</div>';
+  h += '</div></div>';
+  root.innerHTML = h;
+}
+
+render();
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+</script>
+</body>
+</html>

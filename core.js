@@ -1,7 +1,7 @@
-// WASTELAND PANZER v5.2 — CORE
+// WASTELAND PANZER v5.3 — CORE
 // ============================================================
 
-const VERSION = '5.2';
+const VERSION = '5.3';
 const VETERAN_YEAR = 1985;
 const VET = (new Date().getFullYear() - VETERAN_YEAR) / 100 + 1;
 const KSM_ON = 56, KSM_OFF = 14;
@@ -1001,6 +1001,7 @@ const NAV_ITEMS = [
   {href:'supplements.html', icon:'⚗️', label:'SUPPLEMENTS'},
   {href:'balance.html',     icon:'⚖️', label:'BALANCE'},
   {href:'quest.html',       icon:'⚔️', label:'QUESTS'},
+  {href:'hall.html',        icon:'🏆', label:'HALL OF FAME'},
   {href:'data.html',        icon:'📊', label:'DATEN'},
   {href:'log.html',         icon:'📋', label:'LOG'},
 ];
