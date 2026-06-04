@@ -64,5 +64,21 @@ const WP_THEMES = [
       '--canvas-dot':'#e20074','--canvas-label':'#666666','--canvas-val':'#e20074',
       '--radius':'4px'
     }
+  },
+{
+    id: 'leber_retter', label: '🌿 LEBER-RETTER',
+    vars: {
+      '--bg0':'#040705','--bg1':'#0a100c','--bg2':'#121d16','--bg3':'#1b2b21',
+      '--amber':'#58a673','--adim':'#2d593d','--afaint':'#0a140e',
+      '--text':'#e2eed8','--tb':'#b2cca2',
+      '--glow-hi':'rgba(88,166,115,0.5)','--glow-md':'rgba(88,166,115,0.4)',
+      '--glow-lo':'rgba(88,166,115,0.3)','--glow-bg':'rgba(88,166,115,0.05)',
+      '--glow-box':'rgba(88,166,115,0.12)','--glow-press':'rgba(88,166,115,0.1)',
+      '--glow-canvas-hi':'rgba(88,166,115,0.8)','--glow-canvas-ring':'rgba(88,166,115,0.25)',
+      '--glow-canvas-dim':'rgba(88,166,115,0.08)','--glow-canvas-fill':'rgba(88,166,115,0.1)',
+      '--glow-canvas-spoke':'rgba(88,166,115,0.12)',
+      '--canvas-dot':'#58a673','--canvas-label':'#b2cca2','--canvas-val':'#ffffff',
+      '--radius':'6px'
+    }
   }
 ];
