@@ -4,6 +4,7 @@ const WP_THEMES = [
   {
     id: 'amber', label: '🌙 AMBER',
     vars: {
+      '--bg0':'#050505','--bg1':'#0a0a0a','--bg2':'#111111','--bg3':'#1a1a1a',
       '--amber':'#ffaa00','--adim':'#664400','--afaint':'#1a0e00',
       '--text':'#ccaa77','--tb':'#ffcc88',
       '--glow-hi':'rgba(255,170,0,0.6)','--glow-md':'rgba(255,170,0,0.5)',
@@ -19,6 +20,7 @@ const WP_THEMES = [
   {
     id: 'panzer', label: '☢️ PANZER',
     vars: {
+      '--bg0':'#050505','--bg1':'#0a0a0a','--bg2':'#111111','--bg3':'#1a1a1a',
       '--amber':'#ff4444','--adim':'#662222','--afaint':'#1a0808',
       '--text':'#cccccc','--tb':'#eeeeee',
       '--glow-hi':'rgba(255,68,68,0.6)','--glow-md':'rgba(255,68,68,0.5)',
@@ -34,6 +36,7 @@ const WP_THEMES = [
   {
     id: 'toxic', label: '☣️ TOXIC',
     vars: {
+      '--bg0':'#050505','--bg1':'#0a0a0a','--bg2':'#111111','--bg3':'#1a1a1a',
       '--amber':'#44ff88','--adim':'#226644','--afaint':'#0a1a0e',
       '--text':'#ccffdd','--tb':'#aaffcc',
       '--glow-hi':'rgba(68,255,136,0.6)','--glow-md':'rgba(68,255,136,0.5)',
@@ -49,15 +52,16 @@ const WP_THEMES = [
   {
     id: 'telekom', label: '📶 TELEKOM',
     vars: {
-      '--amber':'#e20074','--adim':'#8c0048','--afaint':'#1a0010',
-      '--text':'#cccccc','--tb':'#ffffff',
+      '--bg0':'#f5f5f5','--bg1':'#ebebeb','--bg2':'#dcdcdc','--bg3':'#cccccc',
+      '--amber':'#e20074','--adim':'#b0005a','--afaint':'#fce8f3',
+      '--text':'#333333','--tb':'#111111',
       '--glow-hi':'rgba(226,0,116,0.7)','--glow-md':'rgba(226,0,116,0.55)',
       '--glow-lo':'rgba(226,0,116,0.4)','--glow-bg':'rgba(226,0,116,0.07)',
       '--glow-box':'rgba(226,0,116,0.18)','--glow-press':'rgba(226,0,116,0.14)',
       '--glow-canvas-hi':'rgba(226,0,116,0.95)','--glow-canvas-ring':'rgba(226,0,116,0.35)',
       '--glow-canvas-dim':'rgba(226,0,116,0.12)','--glow-canvas-fill':'rgba(226,0,116,0.1)',
       '--glow-canvas-spoke':'rgba(226,0,116,0.18)',
-      '--canvas-dot':'#e20074','--canvas-label':'#cc88aa','--canvas-val':'#ffffff',
+      '--canvas-dot':'#e20074','--canvas-label':'#666666','--canvas-val':'#e20074',
       '--radius':'4px'
     }
   }
