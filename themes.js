@@ -161,7 +161,7 @@ const WP_THEMES = [
     }
   },
     
-];  {
+  {
     id: 'db_infra', label: '🎛️ STELLWERK',
     vars: {
       '--bg0':'#0f1112','--bg1':'#16191b','--bg2':'#212529','--bg3':'#2d3238',
@@ -193,3 +193,4 @@ const WP_THEMES = [
       '--radius':'6px'
     }
   }
+];
