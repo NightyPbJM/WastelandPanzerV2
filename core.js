@@ -722,6 +722,8 @@ const SHARED_CSS = `
   --glow-bg:var(--glow-bg); --glow-box:var(--glow-box); --glow-press:var(--glow-press);
   --radius:0px;
   --glow-canvas-hi:rgba(255,170,0,0.9); --glow-canvas-ring:rgba(255,170,0,0.3); --glow-canvas-dim:rgba(255,170,0,0.1);
+  --glow-canvas-fill:rgba(255,170,0,0.12); --glow-canvas-spoke:rgba(255,170,0,0.15);
+  --canvas-dot:#ffaa00; --canvas-label:#ccaa77; --canvas-val:#ffcc88;
 }
 [data-theme="panzer"] {
   --amber:#ff4444; --adim:#662222; --afaint:#1a0808;
@@ -730,6 +732,8 @@ const SHARED_CSS = `
   --glow-bg:rgba(255,68,68,0.06); --glow-box:rgba(255,68,68,0.15); --glow-press:rgba(255,68,68,0.12);
   --radius:4px;
   --glow-canvas-hi:rgba(255,68,68,0.9); --glow-canvas-ring:rgba(255,68,68,0.3); --glow-canvas-dim:rgba(255,68,68,0.1);
+  --glow-canvas-fill:rgba(255,68,68,0.12); --glow-canvas-spoke:rgba(255,68,68,0.15);
+  --canvas-dot:#ff4444; --canvas-label:#cccccc; --canvas-val:#ff8888;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;background:var(--bg0);color:var(--text);font-family:var(--font);overflow:hidden;}
@@ -1131,6 +1135,16 @@ function drawRadar(canvas) {
   const keys=['S','P','E','I','A','L'];
   const N=6;
   const vals = keys.map(k => state.stats[k]);
+  // Theme-aware canvas colors (CSS vars via getComputedStyle — Canvas kann kein var())
+  const _cs=getComputedStyle(document.documentElement);
+  const _cHi   =_cs.getPropertyValue('--glow-canvas-hi').trim()   ||'rgba(255,170,0,0.9)';
+  const _cRing  =_cs.getPropertyValue('--glow-canvas-ring').trim() ||'rgba(255,170,0,0.3)';
+  const _cDim   =_cs.getPropertyValue('--glow-canvas-dim').trim()  ||'rgba(255,170,0,0.1)';
+  const _cFill  =_cs.getPropertyValue('--glow-canvas-fill').trim() ||'rgba(255,170,0,0.12)';
+  const _cSpoke =_cs.getPropertyValue('--glow-canvas-spoke').trim()||'rgba(255,170,0,0.15)';
+  const _cDot   =_cs.getPropertyValue('--canvas-dot').trim()       ||'#ffaa00';
+  const _cLabel =_cs.getPropertyValue('--canvas-label').trim()     ||'#ccaa77';
+  const _cVal   =_cs.getPropertyValue('--canvas-val').trim()       ||'#ffcc88';
 
   const pt = (i,v) => {
     const a = (Math.PI*2*i/N) - Math.PI/2;
@@ -1145,39 +1159,37 @@ function drawRadar(canvas) {
     ctx.beginPath();
     for (let i=0;i<N;i++) { const p=pt(i,ring); if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y); }
     ctx.closePath();
-    const _cs=getComputedStyle(document.documentElement); const _cHi=_cs.getPropertyValue('--glow-canvas-hi').trim()||'rgba(255,170,0,0.9)'; const _cRing=_cs.getPropertyValue('--glow-canvas-ring').trim()||'rgba(255,170,0,0.3)'; const _cDim=_cs.getPropertyValue('--glow-canvas-dim').trim()||'rgba(255,170,0,0.1)';
-ctx.strokeStyle = ring===10 ? _cRing : _cDim;
+    ctx.strokeStyle = ring===10 ? _cRing : _cDim;
     ctx.lineWidth=1; ctx.stroke();
   }
   for (let i=0;i<N;i++) {
     const o=op(i); ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(o.x,o.y);
-    ctx.strokeStyle='var(--glow-box)'; ctx.lineWidth=1; ctx.stroke();
+    ctx.strokeStyle=_cSpoke; ctx.lineWidth=1; ctx.stroke();
   }
   ctx.beginPath();
   vals.forEach((v,i) => { const p=pt(i,v); if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y); });
   ctx.closePath();
-  ctx.fillStyle='var(--glow-press)'; ctx.fill();
+  ctx.fillStyle=_cFill; ctx.fill();
   ctx.strokeStyle=_cHi; ctx.lineWidth=2;
-  ctx.shadowColor='#ffaa00'; ctx.shadowBlur=8; ctx.stroke(); ctx.shadowBlur=0;
+  ctx.shadowColor=_cDot; ctx.shadowBlur=8; ctx.stroke(); ctx.shadowBlur=0;
   vals.forEach((v,i) => {
     const p=pt(i,v);
     ctx.beginPath(); ctx.arc(p.x,p.y,3,0,Math.PI*2);
-    ctx.fillStyle='#ffaa00'; ctx.shadowColor='#ffaa00'; ctx.shadowBlur=8; ctx.fill(); ctx.shadowBlur=0;
+    ctx.fillStyle=_cDot; ctx.shadowColor=_cDot; ctx.shadowBlur=8; ctx.fill(); ctx.shadowBlur=0;
   });
   ctx.textAlign='center'; ctx.textBaseline='middle';
   labels.forEach((lbl,i) => {
     const a=(Math.PI*2*i/N)-Math.PI/2;
-    ctx.font='bold 8px "Share Tech Mono"'; ctx.fillStyle='#ccaa77';
-    ctx.shadowColor='#ffaa00'; ctx.shadowBlur=3;
+    ctx.font='bold 8px "Share Tech Mono"'; ctx.fillStyle=_cLabel;
+    ctx.shadowColor=_cDot; ctx.shadowBlur=3;
     ctx.fillText(lbl, cx+(R+16)*Math.cos(a), cy+(R+16)*Math.sin(a));
     const vp=pt(i,vals[i]);
-    ctx.font='bold 9px "Orbitron"'; ctx.fillStyle='#ffcc88'; ctx.shadowBlur=5;
+    ctx.font='bold 9px "Orbitron"'; ctx.fillStyle=_cVal; ctx.shadowBlur=5;
     ctx.fillText(vals[i], vp.x+Math.cos(a)*9, vp.y+Math.sin(a)*9);
   });
   ctx.shadowBlur=0;
 }
 
-// ---- SPARKLINE ----
 function drawSparkline(canvas, values, isGood) {
   if (!canvas || values.length<2) return;
   const W=canvas.width, H=canvas.height, ctx=canvas.getContext('2d');

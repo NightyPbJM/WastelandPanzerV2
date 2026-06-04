@@ -1,4 +1,4 @@
-const CACHE = 'wasteland-panzer-v5-1';
+const CACHE = 'wasteland-panzer-v5-1a';
 const FILES = ['index.html','core.js','training.html','supplements.html','quest.html','balance.html','data.html','log.html','manifest.json','icon-192.svg'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)));
