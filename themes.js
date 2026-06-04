@@ -3,6 +3,7 @@
 const WP_THEMES = [
   {
     id: 'amber', label: '🌙 AMBER',
+    description: 'Original Wasteland-Aesthetic. Warmes Amber in dunklem Stil — Post-Apokalypse at its finest.',
     vars: {
       '--bg0':'#050505','--bg1':'#0a0a0a','--bg2':'#111111','--bg3':'#1a1a1a',
       '--amber':'#ffaa00','--adim':'#664400','--afaint':'#1a0e00',
@@ -19,6 +20,7 @@ const WP_THEMES = [
   },
   {
     id: 'panzer', label: '☢️ PANZER',
+    description: 'Projekt PANZER — knallrot, dystopisch, aggressive Ästhetik. Für wenn du es düster magst.',
     vars: {
       '--bg0':'#050505','--bg1':'#0a0a0a','--bg2':'#111111','--bg3':'#1a1a1a',
       '--amber':'#ff4444','--adim':'#662222','--afaint':'#1a0808',
@@ -35,6 +37,7 @@ const WP_THEMES = [
   },
   {
     id: 'toxic', label: '☣️ TOXIC',
+    description: 'Pip-Boy Gift-Grün. Fallout-inspiriert, strahlend, leicht radioaktiv im Vibe.',
     vars: {
       '--bg0':'#050505','--bg1':'#0a0a0a','--bg2':'#111111','--bg3':'#1a1a1a',
       '--amber':'#44ff88','--adim':'#226644','--afaint':'#0a1a0e',
@@ -51,6 +54,7 @@ const WP_THEMES = [
   },
   {
     id: 'telekom', label: '📶 TELEKOM',
+    description: 'Heller Corporate-Look mit Magenta. Für wenn du Kontrast und Klarheit willst.',
     vars: {
       '--bg0':'#f5f5f5','--bg1':'#ebebeb','--bg2':'#dcdcdc','--bg3':'#cccccc',
       '--amber':'#e20074','--adim':'#b0005a','--afaint':'#fce8f3',
@@ -67,6 +71,7 @@ const WP_THEMES = [
   },
   {
     id: 'leber_retter', label: '🌿 LEBER-RETTER',
+    description: 'Beruhigendes Grün, Gesundheit-fokussiert. Für entspannte Trainings-Sessions.',
     vars: {
       '--bg0':'#040705','--bg1':'#0a100c','--bg2':'#121d16','--bg3':'#1b2b21',
       '--amber':'#58a673','--adim':'#2d593d','--afaint':'#0a140e',
@@ -83,6 +88,7 @@ const WP_THEMES = [
   },
   {
     id: 'db_infra', label: '🎛️ STELLWERK',
+    description: 'Eisenbahn-Infrastruktur Rot. Kontrolltower-Vibes, präzise und fokussiert wie ein Fahrdienstleiter.',
     vars: {
       '--bg0':'#0f1112','--bg1':'#16191b','--bg2':'#212529','--bg3':'#2d3238',
       '--amber':'#ff0000','--adim':'#990000','--afaint':'#240505',
@@ -98,7 +104,8 @@ const WP_THEMES = [
     }
   },
   {
-    id: 'isekai', label: '🪐` ISEKAI OP',
+    id: 'isekai', label: '🪐 ISEKAI OP',
+    description: 'Lila Anime-OP Ästhetik. Träumerisch, mystisch, ein bisschen "Ich bin in einer anderen Welt".',
     vars: {
       '--bg0':'#020205','--bg1':'#06060c','--bg2':'#0d0d1a','--bg3':'#14142b',
       '--amber':'#8844ff','--adim':'#4411aa','--afaint':'#0f0521',
