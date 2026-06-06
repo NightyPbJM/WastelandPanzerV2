@@ -50,7 +50,8 @@ function render() {
     h += '<div class="data-grid">';
     [['Gewicht',c.weight,'kg'],['Viszeralfett',c.visceral,''],['Muskelmasse',c.muscle,'kg'],
      ['KFA',c.fat,'%'],['Blutdruck',c.bp,''],['Schlaf',c.sleep,'h'],
-     ['Score',c.sleepScore,''],['WHR',c.whr,'']]
+     ['Score',c.sleepScore,''],['WHR',c.whr,''],
+     ['👟 Schritte',c.schritte ? parseInt(c.schritte).toLocaleString('de-DE') : null,'']]
     .concat(MEASUREMENTS.map(function(m){return [m.name,c[m.id],'cm'];}))
     .filter(function(x){return x[1];})
     .forEach(function(x){ h += '<div class="dl">' + x[0] + ':</div><div class="dv">' + x[1] + x[2] + '</div>'; });

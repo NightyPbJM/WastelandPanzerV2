@@ -629,6 +629,11 @@ function toggleOptSupp(id) {
   const d = loadDailyOpt();
   d.checked[id] = !d.checked[id];
   saveDailyOpt(d);
+  // Auch in state.supplements für Quest-Historien speichern
+  const today = today();
+  if (!state.supplements[today]) state.supplements[today] = {};
+  state.supplements[today][id] = d.checked[id];
+  saveState();
   addEv('chem', `${d.checked[id]?'✓':'✗'} ${id.toUpperCase()}`);
 }
 
