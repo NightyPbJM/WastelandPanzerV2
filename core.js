@@ -432,11 +432,11 @@ function calcSeilXP(dauer, rpm) {
 }
 
 function calcBikeXP(distanz, avgSpeed, dauer, maxSpeed) {
-  // Zeitbasiert: Minuten × Intensität (avgSpeed/10) × Peak-Bonus
+  // Distanzbasiert: Distanz × gewichtetes Tempo (70% Ausdauer + 30% Peak)
   const avg = parseFloat(avgSpeed||0), max = parseFloat(maxSpeed||avg);
-  const peakFactor = max > avg ? 1 + (max/avg - 1) * 0.5 : 1;
-  const base = parseFloat(dauer||0) * (avg/10) * peakFactor;
-  const boosted = base*VET;
+  const weightedSpeed = avg * 0.7 + max * 0.3;
+  const base = parseFloat(distanz||0) * weightedSpeed / 3.5;
+  const boosted = base * VET;
   return {total:Math.round(boosted*10)/10, statXP:{E:Math.round(boosted*0.6*10)/10, A:Math.round(boosted*0.4*10)/10}};
 }
 
