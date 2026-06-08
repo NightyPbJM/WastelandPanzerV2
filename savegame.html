@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#050505">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WASTELAND PANZER">
+<title>SAVEGAME EDITOR — WASTELAND PANZER</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<link rel="manifest" href="./manifest.json">
+<style>/* injected */</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="themes.js"></script>
+<script src="core.js"></script>
+<script>
+
+// ============ SAVEGAME EDITOR v5.5beta ============
+
+let sgTab = 'supps';
+const SUPP_LIST = KERN_SUPPS.concat([OPT_SUPPS[0]]); // 7 Kern + 7-Kräuter
+const TR_ICONS = { egym:'🏋', bike:'🚴', seil:'🪢', ergo:'🚣' };
+
+function sgSetTab(t) { sgTab = t; render(); }
+
+// letzte n Tage als de-DE Keys (identisch zu today()/supplements-Keys)
+function lastNDays(n) {
+  const arr = [];
+  for (let i=0; i<n; i++) {
+    const d = new Date(); d.setDate(d.getDate()-i);
+    arr.push(d.toLocaleDateString('de-DE'));
+  }
+  return arr;
+}
+// Dezimalminuten → "M:SS"
+function fmtDauer(dez) {
+  const m = Math.floor(dez||0), s = Math.round(((dez||0)-m)*60);
+  return m + ':' + String(s).padStart(2,'0');
+}
+// "M:SS" oder "M.SS" → Dezimalminuten
+function parseDauer(str) {
+  str = String(str).trim();
+  if (str.indexOf(':')>=0) { const p=str.split(':'); return parseInt(p[0],10) + parseInt(p[1],10)/60; }
+  return parseFloat(str)||0;
+}
+
+// ---- SUPPLEMENT TOGGLE ----
+function toggleSupp(date, id) {
+  if (!state.supplements[date]) state.supplements[date] = {};
+  state.supplements[date][id] = !state.supplements[date][id];
+  // dailyOpt synchron halten falls heute + opt-supp
+  if (date === today() && id === 'heidelberger') {
+    try { const d = loadDailyOpt(); d.checked[id] = state.supplements[date][id]; saveDailyOpt(d); } catch(e){}
+  }
+  recalcAllStreaks();
+  recalcStats();
+  render();
+}
+
+// ---- TRAINING EDIT ----
+function editTraining(idx) {
+  const t = state.trainings[idx];
+  if (!t) return;
+  let fields = '';
+  if (t.type==='bike' || t.type==='ergo') {
+    fields += sgField('sg_dist','DISTANZ (km)', t.distanz, 'number', '0.01');
+    fields += sgField('sg_dauer','DAUER (min:sek)', fmtDauer(t.dauer), 'text');
+    fields += sgField('sg_avg','Ø GESCHW. (km/h)', t.avgSpeed, 'number', '0.01');
+    if (t.type==='bike') fields += sgField('sg_max','MAX GESCHW. (km/h)', t.maxSpeed, 'number', '0.01');
+  } else if (t.type==='seil') {
+    fields += sgField('sg_dauer','DAUER (min:sek)', fmtDauer(t.dauer), 'text');
+    fields += sgField('sg_rpm','RPM', t.rpm, 'number', '1');
+    fields += sgField('sg_runden','RUNDEN', t.runden, 'number', '1');
+  }
+  sgModal('✎ ' + t.type.toUpperCase() + ' · ' + t.date, fields,
+    'saveTrainingEdit(' + idx + ')', 'XP wird automatisch neu berechnet.');
+}
+
+function saveTrainingEdit(idx) {
+  const t = state.trainings[idx];
+  if (!t) return;
+  subtractXP({ total: t.sessionXP||0, statXP: t.statXP||{} }); // alte XP raus
+  let xp;
+  if (t.type==='bike') {
+    t.distanz = parseFloat(gv('sg_dist'))||0;
+    t.dauer = parseDauer(gv('sg_dauer'));
+    t.avgSpeed = parseFloat(gv('sg_avg'))||0;
+    t.maxSpeed = parseFloat(gv('sg_max'))||0;
+    xp = calcBikeXP(t.distanz, t.avgSpeed, t.dauer, t.maxSpeed);
+  } else if (t.type==='ergo') {
+    t.distanz = parseFloat(gv('sg_dist'))||0;
+    t.dauer = parseDauer(gv('sg_dauer'));
+    t.avgSpeed = parseFloat(gv('sg_avg'))||0;
+    xp = calcErgoXP(t.distanz, t.avgSpeed, t.dauer);
+  } else if (t.type==='seil') {
+    t.dauer = parseDauer(gv('sg_dauer'));
+    t.rpm = parseFloat(gv('sg_rpm'))||0;
+    t.runden = parseFloat(gv('sg_runden'))||0;
+    xp = calcSeilXP(t.dauer, t.rpm);
+  }
+  if (xp) { t.sessionXP = xp.total; t.statXP = xp.statXP; applyXP(xp); }
+  recalcStats();
+  closeModal();
+  render();
+  toast('✓ ' + t.type.toUpperCase() + ' aktualisiert');
+}
+
+function delTraining(idx) {
+  const t = state.trainings[idx];
+  if (!t) return;
+  if (!confirm(t.type.toUpperCase() + ' vom ' + t.date + ' löschen?')) return;
+  subtractXP({ total: t.sessionXP||0, statXP: t.statXP||{} });
+  addEv('system', 'Training gelöscht: ' + t.type + ' ' + t.date);
+  state.trainings.splice(idx, 1);
+  recalcStats();
+  render();
+  toast('🗑 Gelöscht');
+}
+
+// ---- CHECK-IN EDIT ----
+function editCheckin(idx) {
+  const c = state.checkins[idx];
+  if (!c) return;
+  let f = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+  f += sgField('sg_w','GEWICHT (kg)', c.weight, 'number', '0.1');
+  f += sgField('sg_vf','VISZERALFETT', c.visceral, 'number', '0.5');
+  f += sgField('sg_mm','MUSKELMASSE (kg)', c.muscle, 'number', '0.1');
+  f += sgField('sg_kfa','KFA (%)', c.fat, 'number', '0.1');
+  f += sgField('sg_sl','SCHLAF (h)', c.sleep, 'number', '0.01');
+  f += sgField('sg_sls','SCHLAF-SCORE', c.sleepScore, 'number', '1');
+  f += sgField('sg_steps','SCHRITTE', c.schritte, 'number', '1');
+  f += '</div>';
+  sgModal('✎ CHECK-IN · ' + c.date, f, 'saveCheckinEdit(' + idx + ')',
+    'Trend + Stats werden automatisch neu berechnet.');
+}
+
+function saveCheckinEdit(idx) {
+  const c = state.checkins[idx];
+  if (!c) return;
+  const oldSleepXP = c.sleepXP || 0;
+  c.weight = gv('sg_w') || c.weight;
+  c.visceral = gv('sg_vf') || c.visceral;
+  c.muscle = gv('sg_mm') || c.muscle;
+  c.fat = gv('sg_kfa') || c.fat;
+  c.sleep = gv('sg_sl') || c.sleep;
+  c.sleepScore = gv('sg_sls') || c.sleepScore;
+  c.schritte = gv('sg_steps') || c.schritte;
+  // Sleep-XP neu (globalXP-Differenz)
+  const newSleepXP = (c.sleepScore && parseFloat(c.sleepScore)>0) ? calcSleepXP(c.sleepScore) : 0;
+  c.sleepXP = newSleepXP;
+  state.globalXP = Math.max(0, (state.globalXP||0) - oldSleepXP + newSleepXP);
+  recalcStats();
+  closeModal();
+  render();
+  toast('✓ Check-in aktualisiert');
+}
+
+function delCheckin(idx) {
+  if (idx === 0) { toast('⚠ Anker kann nicht gelöscht werden'); return; }
+  const c = state.checkins[idx];
+  if (!c) return;
+  if (!confirm('Check-in vom ' + c.date + ' löschen?')) return;
+  if (c.sleepXP) state.globalXP = Math.max(0, (state.globalXP||0) - c.sleepXP);
+  state.checkins.splice(idx, 1);
+  recalcStats();
+  render();
+  toast('🗑 Gelöscht');
+}
+
+// ---- Modal-Helfer ----
+function sgField(id, label, val, type, step) {
+  return '<div style="margin-bottom:10px">'
+    + '<div style="font-size:8px;color:var(--adim);letter-spacing:1px;margin-bottom:3px">' + label + '</div>'
+    + '<input id="' + id + '" type="' + (type||'text') + '"' + (step?' step="'+step+'"':'')
+    + ' value="' + (val!==undefined&&val!==null?String(val).replace(/"/g,'&quot;'):'') + '"'
+    + ' style="width:100%;background:var(--bg0);color:var(--tb);border:1px solid var(--adim);font-family:var(--font);font-size:13px;padding:8px;border-radius:var(--radius)"></div>';
+}
+function gv(id) { const el = document.getElementById(id); return el ? el.value.trim() : ''; }
+
+function sgModal(title, bodyHtml, saveFn, note) {
+  closeModal();
+  const ov = document.createElement('div');
+  ov.className = 'modal-overlay'; ov.id = 'sg-modal';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;display:flex;align-items:center;justify-content:center;';
+  ov.onclick = function(e){ if(e.target===ov) closeModal(); };
+  ov.innerHTML = '<div class="modal" style="background:var(--bg1);border:1px solid var(--amber);padding:18px 16px;width:93%;max-width:400px;border-radius:var(--radius);max-height:88vh;overflow-y:auto">'
+    + '<div class="modal-title" style="font-family:var(--fontd);font-size:12px;color:var(--amber);letter-spacing:2px;margin-bottom:14px">' + title + '</div>'
+    + bodyHtml
+    + (note ? '<div style="font-size:8px;color:var(--adim);font-style:italic;margin-top:6px">' + note + '</div>' : '')
+    + '<div style="display:flex;gap:8px;margin-top:14px">'
+    + '<button class="btn" style="flex:1" onclick="' + saveFn + '">💾 SPEICHERN</button>'
+    + '<button class="btn" style="flex:1;border-color:var(--adim);color:var(--adim)" onclick="closeModal()">ABBRECHEN</button>'
+    + '</div></div>';
+  document.body.appendChild(ov);
+}
+function closeModal() { const m = document.getElementById('sg-modal'); if (m) m.remove(); }
+
+// ---- Tab-Renderer ----
+function renderSupps() {
+  let h = '';
+  // Streak-Übersicht
+  h += '<div class="sec-title" style="border-top:none;margin-top:0">AKTUELLE STREAKS</div>';
+  h += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">';
+  KERN_SUPPS.forEach(function(s){
+    const st = state.suppStreaks[s.id] || 0;
+    h += '<div style="border:1px solid var(--adim);border-radius:var(--radius);padding:5px 8px;font-size:10px;color:var(--text)">'
+      + s.icon + ' <span style="font-family:var(--fontd);color:var(--amber)">' + st + '</span></div>';
+  });
+  h += '</div>';
+
+  h += '<div class="sec-title">LETZTE 14 TAGE — antippen zum umschalten</div>';
+  h += '<div style="font-size:8px;color:var(--adim);margin-bottom:10px;display:flex;flex-wrap:wrap;gap:8px">';
+  SUPP_LIST.forEach(function(s){ h += '<span>' + s.icon + ' ' + s.name + '</span>'; });
+  h += '</div>';
+
+  lastNDays(14).forEach(function(date, i){
+    const dd = state.supplements[date] || {};
+    h += '<div class="card" style="margin-bottom:6px">';
+    h += '<div style="font-size:9px;color:' + (i===0?'var(--amber)':'var(--adim)') + ';letter-spacing:1px;margin-bottom:6px">'
+      + date + (i===0?' · HEUTE':'') + '</div>';
+    h += '<div style="display:flex;flex-wrap:wrap;gap:5px">';
+    SUPP_LIST.forEach(function(s){
+      const on = !!dd[s.id];
+      h += '<button onclick="toggleSupp(\'' + date + '\',\'' + s.id + '\')" title="' + s.name + '" '
+        + 'style="width:38px;height:38px;border-radius:var(--radius);font-size:15px;cursor:pointer;'
+        + 'border:1px solid ' + (on?'var(--amber)':'var(--adim)') + ';'
+        + 'background:' + (on?'var(--afaint)':'transparent') + ';'
+        + 'filter:' + (on?'none':'grayscale(1) opacity(0.4)') + '">' + s.icon + '</button>';
+    });
+    h += '</div></div>';
+  });
+  return h;
+}
+
+function renderTraining() {
+  let h = '<div class="sec-title" style="border-top:none;margin-top:0">TRAININGS — neueste zuerst</div>';
+  const trs = state.trainings.slice().reverse();
+  if (!trs.length) { return h + '<div style="color:var(--adim);font-size:9px">// Keine Trainings</div>'; }
+  trs.forEach(function(t){
+    const idx = state.trainings.indexOf(t);
+    let info = '';
+    if (t.type==='egym') info = 'Score: ' + (t.score||0).toLocaleString('de-DE') + ' · ' + (t.modeId||'');
+    else if (t.type==='bike'||t.type==='ergo') info = t.distanz + 'km · Ø' + t.avgSpeed + 'km/h · ' + fmtDauer(t.dauer);
+    else if (t.type==='seil') info = t.rpm + ' RPM · ' + fmtDauer(t.dauer);
+    h += '<div class="card" style="display:flex;align-items:center;gap:10px;margin-bottom:6px">';
+    h += '<div style="font-size:18px;width:24px;text-align:center">' + (TR_ICONS[t.type]||'?') + '</div>';
+    h += '<div style="flex:1;min-width:0"><div style="font-size:11px;color:var(--tb)">' + t.type.toUpperCase() + ' · ' + t.date + '</div>'
+      + '<div style="font-size:8px;color:var(--adim);margin-top:2px">' + info + '</div></div>';
+    h += '<div style="font-family:var(--fontd);font-size:10px;color:var(--amber);white-space:nowrap">' + (t.sessionXP||0) + ' XP</div>';
+    if (t.type !== 'egym') {
+      h += '<button class="btn" style="padding:6px 9px;font-size:10px" onclick="editTraining(' + idx + ')">✎</button>';
+    }
+    h += '<button class="btn" style="padding:6px 9px;font-size:10px;border-color:var(--adim);color:var(--adim)" onclick="delTraining(' + idx + ')">🗑</button>';
+    h += '</div>';
+  });
+  h += '<div style="font-size:8px;color:var(--adim);font-style:italic;margin-top:8px">// EGYM-Editieren folgt — vorerst nur löschen (Sets zu komplex für Beta).</div>';
+  return h;
+}
+
+function renderCheckin() {
+  let h = '<div class="sec-title" style="border-top:none;margin-top:0">CHECK-INS — neueste zuerst</div>';
+  const cis = state.checkins.slice().reverse();
+  if (!cis.length) { return h + '<div style="color:var(--adim);font-size:9px">// Keine Check-ins</div>'; }
+  cis.forEach(function(c){
+    const idx = state.checkins.indexOf(c);
+    const isAnchor = idx === 0;
+    const hasBody = c.weight || c.visceral || c.muscle || c.fat;
+    h += '<div class="card" style="margin-bottom:6px">';
+    h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+      + '<div style="font-family:var(--fontd);font-size:10px;color:var(--amber)">' + c.date + '</div>'
+      + (isAnchor ? '<div style="font-size:7px;color:var(--adim)">⚓ ANKER</div>' : '') + '</div>';
+    if (hasBody) {
+      const fields = [['Gewicht',c.weight,'kg'],['VF',c.visceral,''],['MM',c.muscle,'kg'],['KFA',c.fat,'%'],
+                      ['Schlaf',c.sleep,'h'],['Score',c.sleepScore,''],['👟',c.schritte,'']].filter(function(x){return x[1];});
+      h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 12px;margin-bottom:8px">';
+      fields.forEach(function(f){
+        h += '<div style="font-size:10px"><span style="color:var(--adim);font-size:8px">' + f[0] + '</span> '
+          + '<span style="color:var(--tb)">' + f[1] + f[2] + '</span></div>';
+      });
+      h += '</div>';
+    } else if (c.schritte) {
+      h += '<div style="font-size:10px;color:var(--text);margin-bottom:8px">👟 ' + parseInt(c.schritte,10).toLocaleString('de-DE') + ' Schritte</div>';
+    } else {
+      h += '<div style="font-size:9px;color:var(--adim);margin-bottom:8px">// leer</div>';
+    }
+    h += '<div style="display:flex;gap:6px">';
+    h += '<button class="btn" style="flex:1;padding:7px;font-size:10px" onclick="editCheckin(' + idx + ')">✎ EDITIEREN</button>';
+    if (!isAnchor) h += '<button class="btn" style="flex:1;padding:7px;font-size:10px;border-color:var(--adim);color:var(--adim)" onclick="delCheckin(' + idx + ')">🗑 LÖSCHEN</button>';
+    h += '</div></div>';
+  });
+  return h;
+}
+
+function render() {
+  const root = document.getElementById('root');
+  let h = renderHeader('savegame.html');
+  h += '<div class="scroll"><div class="pad">';
+  h += '<div class="sec-title" style="border-top:none;margin-top:0">✏ SAVEGAME EDITOR <span style="font-size:7px;color:var(--adim)">BETA</span></div>';
+  h += '<div style="font-size:8px;color:var(--adim);margin-bottom:10px">// Direktbearbeitung — alles wird automatisch neu berechnet</div>';
+
+  // Tabs
+  h += '<div style="display:flex;gap:6px;margin-bottom:14px">';
+  [['supps','💊 SUPPS'],['training','🏋 TRAINING'],['checkin','📋 CHECK-IN']].forEach(function(t){
+    const active = sgTab === t[0];
+    h += '<button class="btn" style="flex:1;padding:9px 4px;font-size:9px;' + (active?'background:var(--afaint);color:var(--amber)':'border-color:var(--adim);color:var(--adim)') + '" onclick="sgSetTab(\'' + t[0] + '\')">' + t[1] + '</button>';
+  });
+  h += '</div>';
+
+  if (sgTab === 'supps') h += renderSupps();
+  else if (sgTab === 'training') h += renderTraining();
+  else if (sgTab === 'checkin') h += renderCheckin();
+
+  h += '<div class="page-footer">V5.5beta · ' + new Date(document.lastModified).toLocaleDateString('de-DE') + ' ' + new Date(document.lastModified).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}) + '</div>';
+  h += '</div></div>';
+  root.innerHTML = h;
+}
+
+render();
+
+</script>
+</body>
+</html>

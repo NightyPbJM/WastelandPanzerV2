@@ -1,7 +1,7 @@
-// WASTELAND PANZER v5.4 — CORE
+// WASTELAND PANZER v5.5beta — CORE
 // ============================================================
 
-const VERSION = '5.4';
+const VERSION = '5.5beta';
 const VETERAN_YEAR = 1985;
 const VET = (new Date().getFullYear() - VETERAN_YEAR) / 100 + 1;
 const KSM_ON = 56, KSM_OFF = 14;
@@ -431,9 +431,11 @@ function calcSeilXP(dauer, rpm) {
   return {total:Math.round(boosted*10)/10, statXP:{E:Math.round(boosted*0.6*10)/10, A:Math.round(boosted*0.4*10)/10}};
 }
 
-function calcBikeXP(distanz, avgSpeed, dauer) {
-  // Zeitbasiert: Minuten × Intensität (avgSpeed/10)
-  const base = parseFloat(dauer||0)*(parseFloat(avgSpeed||0)/10);
+function calcBikeXP(distanz, avgSpeed, dauer, maxSpeed) {
+  // Zeitbasiert: Minuten × Intensität (avgSpeed/10) × Peak-Bonus
+  const avg = parseFloat(avgSpeed||0), max = parseFloat(maxSpeed||avg);
+  const peakFactor = max > avg ? 1 + (max/avg - 1) * 0.5 : 1;
+  const base = parseFloat(dauer||0) * (avg/10) * peakFactor;
   const boosted = base*VET;
   return {total:Math.round(boosted*10)/10, statXP:{E:Math.round(boosted*0.6*10)/10, A:Math.round(boosted*0.4*10)/10}};
 }
@@ -559,8 +561,9 @@ function processBike(f) {
   const dauer = parseMinSek(f.dauer);
   const distanz = parseFloat(f.distanz||0);
   const avgSpeed = dauer > 0 ? Math.round((distanz/(dauer/60))*10)/10 : 0;
-  const xpResult = calcBikeXP(distanz, avgSpeed, dauer);
-  state.trainings.push({type:'bike', date:today(), distanz, dauer, avgSpeed, maxSpeed:parseFloat(f.maxSpeed||0), sessionXP:xpResult.total, statXP:xpResult.statXP});
+  const maxSpeed = parseFloat(f.maxSpeed||0);
+  const xpResult = calcBikeXP(distanz, avgSpeed, dauer, maxSpeed);
+  state.trainings.push({type:'bike', date:today(), distanz, dauer, avgSpeed, maxSpeed, sessionXP:xpResult.total, statXP:xpResult.statXP});
   applyXP(xpResult);
   addEv('training', `RAD: ${distanz}km · ${avgSpeed}km/h Ø · +${xpResult.total} XP`);
   recalcStats();
@@ -1008,6 +1011,7 @@ const NAV_ITEMS = [
   {href:'quest.html',       icon:'⚔️', label:'QUESTS'},
   {href:'hall.html',        icon:'🏆', label:'HALL OF FAME'},
   {href:'editor.html',      icon:'🎨', label:'THEME EDITOR'},
+  {href:'savegame.html',    icon:'✏️', label:'SAVE EDITOR'},
   {href:'data.html',        icon:'📊', label:'DATEN'},
   {href:'log.html',         icon:'📋', label:'LOG'},
 ];
