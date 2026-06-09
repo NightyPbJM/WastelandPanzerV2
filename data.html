@@ -98,7 +98,7 @@ function render() {
 
   h += '<div class="sec-title" style="color:var(--red)">DANGER ZONE</div>';
   h += '<button class="btn red" onclick="resetAll()">RESET — ALLE DATEN LÖSCHEN</button>';
-  h += '<div class="page-footer">V5.5beta · ' + new Date(document.lastModified).toLocaleDateString('de-DE') + ' ' + new Date(document.lastModified).toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'}) + '</div>';
+  h += '<div class="page-footer">V5.6 · ' + new Date(document.lastModified).toLocaleDateString('de-DE') + ' ' + new Date(document.lastModified).toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'}) + '</div>';
   h += '</div></div>';
   root.innerHTML = h;
   if (modal) renderModal();

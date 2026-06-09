@@ -1,7 +1,7 @@
-// WASTELAND PANZER v5.5beta — CORE
+// WASTELAND PANZER v5.6 — CORE
 // ============================================================
 
-const VERSION = '5.5beta';
+const VERSION = '5.6';
 const VETERAN_YEAR = 1985;
 const VET = (new Date().getFullYear() - VETERAN_YEAR) / 100 + 1;
 const KSM_ON = 56, KSM_OFF = 14;

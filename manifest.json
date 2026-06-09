@@ -1,7 +1,7 @@
 {
   "name": "WASTELAND PANZER",
   "short_name": "PANZER",
-  "start_url": "./index.html",
+  "start_url": "./splash.html",
   "display": "standalone",
   "background_color": "#000d00",
   "theme_color": "#0a0f0a",

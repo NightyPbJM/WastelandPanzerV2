@@ -93,7 +93,7 @@ function render() {
   h += '<button class="btn blue" onclick="openModal(\'seil\')">SEIL SESSION</button>';
   h += '<button class="btn cyan" onclick="openModal(\'bike\')">RAD SESSION</button>';
   h += '<button class="btn" style="border-color:#336633;color:#66cc66" onclick="openModal(\'ergo\')">ERGOMETER SESSION</button>';
-  h += '<div class="page-footer">V5.5beta · ' + new Date(document.lastModified).toLocaleDateString('de-DE') + ' ' + new Date(document.lastModified).toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'}) + '</div>';
+  h += '<div class="page-footer">V5.6 · ' + new Date(document.lastModified).toLocaleDateString('de-DE') + ' ' + new Date(document.lastModified).toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'}) + '</div>';
   h += '</div></div>';
   root.innerHTML = h;
   if (modal) renderModal();
