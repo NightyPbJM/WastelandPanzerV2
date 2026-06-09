@@ -18,6 +18,12 @@
 <script src="core.js"></script>
 <script>
 
+// ---- SPLASH REDIRECT ----
+if (!sessionStorage.getItem('splashShown')) {
+  sessionStorage.setItem('splashShown', '1');
+  window.location.replace('splash.html');
+}
+
 // ---- INDEX PAGE ----
 let modal = null;
 let installPrompt = null;
