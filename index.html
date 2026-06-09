@@ -169,10 +169,42 @@ function render() {
     <div class="measure-val" style="color:var(--amber)">${whrVal||'-- (Taille+Hüfte eingeben)'}</div>
   </div></div>`;
 
+  // KÖRPERMASSE TREND
+  (function(){
+    // Letzten 2 Messwerte je Maß aus Checkins holen (nur mit echten Werten)
+    const mTrend = [];
+    MEASUREMENTS.forEach(function(m) {
+      const vals = (state.checkins||[])
+        .filter(c => c && c[m.id] && parseFloat(c[m.id]) > 0)
+        .sort((a,b) => (parseDE(a.date)||0) - (parseDE(b.date)||0))
+        .map(c => parseFloat(c[m.id]));
+      if (vals.length < 2) return;
+      const cur = vals[vals.length-1], prev = vals[vals.length-2];
+      const delta = cur - prev;
+      if (Math.abs(delta) < 0.05) return; // stabil — nicht zeigen
+      mTrend.push({name: m.name, cur, delta});
+    });
+    if (!mTrend.length) return;
+    h += '<div class="sec-title">KÖRPERMASSE — VERÄNDERUNG</div>';
+    h += '<div class="trend-grid">';
+    mTrend.forEach(function(m) {
+      const arrow = m.delta < 0 ? '↓' : '↑';
+      const col = m.delta < 0 ? 'var(--green)' : 'var(--red)';
+      h += '<div class="trend-card">'
+        + '<div class="trend-lbl">' + m.name.toUpperCase() + '</div>'
+        + '<div class="trend-val">' + m.cur.toFixed(1) + 'cm'
+        + '<span style="color:' + col + '"> ' + arrow + '</span></div>'
+        + '<div style="font-size:9px;color:' + col + '">'
+        + (m.delta < 0 ? '▼ ' : '▲ ') + Math.abs(m.delta).toFixed(1) + 'cm'
+        + '</div></div>';
+    });
+    h += '</div>';
+  })();
+
   h += `<button class="btn" onclick="openModal('checkin')">⊙ KÖRPER CHECK-IN</button>`;
   h += `<button class="btn amber" onclick="openModal('pause')">⏸ PAUSE STATUS</button>`;
   h += `<button class="btn blue" onclick="openModal('schritte')">👟 SCHRITTE EINTRAGEN</button>`;
-  h += '<div class="page-footer">V5.6 · ' + new Date(document.lastModified).toLocaleDateString('de-DE') + ' ' + new Date(document.lastModified).toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'}) + '</div>';
+  h += '<div class="page-footer">V6.0.0 · ' + new Date(document.lastModified).toLocaleDateString('de-DE') + ' ' + new Date(document.lastModified).toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'}) + '</div>';
   h += '</div></div>';
 
   root.innerHTML = h;

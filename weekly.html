@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#050505">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WASTELAND PANZER">
+<title>WOCHENRÜCKBLICK — WASTELAND PANZER</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<link rel="manifest" href="./manifest.json">
+<style>/* injected */</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="version.js"></script>
+<script src="themes.js"></script>
+<script src="core.js"></script>
+<script>
+
+// ---- WOCHENRÜCKBLICK ----
+
+function getWeekRange() {
+  const d = new Date();
+  const mon = new Date(d);
+  mon.setDate(d.getDate() - ((d.getDay()+6)%7));
+  mon.setHours(0,0,0,0);
+  const sun = new Date(mon); sun.setDate(mon.getDate()+6); sun.setHours(23,59,59);
+  return {start:mon, end:sun};
+}
+function inWeek(dateStr, range) {
+  const d = parseDE(dateStr);
+  return d && d >= range.start && d <= range.end;
+}
+function fmtRange(range) {
+  const opts = {day:'numeric',month:'numeric'};
+  return range.start.toLocaleDateString('de-DE',opts) + ' – ' + range.end.toLocaleDateString('de-DE',opts) + '.' + range.end.getFullYear();
+}
+
+const TR_ICONS = {egym:'🏋',bike:'🚴',seil:'🪢',ergo:'🚣'};
+const TR_NAMES = {egym:'EGYM',bike:'FAHRRAD',seil:'SEIL',ergo:'ERGOMETER'};
+
+function render() {
+  const root = document.getElementById('root');
+  const range = getWeekRange();
+  let h = renderHeader('weekly.html');
+  h += '<div class="scroll"><div class="pad">';
+  h += '<div class="sec-title" style="border-top:none;margin-top:0">📅 WOCHENRÜCKBLICK</div>';
+  h += '<div style="font-size:9px;color:var(--adim);letter-spacing:1px;margin-bottom:12px">' + fmtRange(range) + '</div>';
+
+  // ── Trainings diese Woche ──
+  const weekTr = (state.trainings||[]).filter(t => inWeek(t.date, range));
+  const weekXP = weekTr.reduce((s,t) => s + (t.sessionXP||0), 0);
+
+  // ── Check-ins diese Woche ──
+  const weekCI = (state.checkins||[]).filter(c => inWeek(c.date, range))
+    .sort((a,b) => (parseDE(a.date)||0) - (parseDE(b.date)||0));
+  const sleepXP = weekCI.reduce((s,c) => s + (c.sleepXP||0), 0);
+  const totalXP = Math.round((weekXP + sleepXP) * 10) / 10;
+
+  // ── XP-Karte ──
+  h += '<div class="card" style="text-align:center;padding:16px;margin-bottom:10px">';
+  h += '<div style="font-size:9px;color:var(--adim);letter-spacing:2px;margin-bottom:4px">XP DIESE WOCHE</div>';
+  h += '<div style="font-family:var(--fontd);font-size:36px;font-weight:900;color:var(--amber);text-shadow:0 0 20px var(--glow-hi)">' + totalXP + '</div>';
+  h += '<div style="font-size:8px;color:var(--adim);margin-top:4px">' + weekTr.length + ' Training' + (weekTr.length!==1?'s':'') + (sleepXP>0?' · ' + sleepXP.toFixed(1) + ' XP Schlaf':'') + '</div>';
+  h += '</div>';
+
+  // ── Beste Session ──
+  if (weekTr.length) {
+    const best = weekTr.reduce((a,b) => (a.sessionXP||0) > (b.sessionXP||0) ? a : b);
+    h += '<div class="sec-title">🏆 BESTE SESSION</div>';
+    h += '<div class="card" style="display:flex;align-items:center;gap:10px">';
+    h += '<div style="font-size:24px">' + (TR_ICONS[best.type]||'?') + '</div>';
+    h += '<div style="flex:1"><div style="font-size:11px;color:var(--tb)">' + (TR_NAMES[best.type]||best.type) + ' · ' + best.date + '</div>';
+    if (best.type==='egym') h += '<div style="font-size:8px;color:var(--adim)">' + (best.score||0).toLocaleString('de-DE') + ' Score</div>';
+    else if (best.type==='bike'||best.type==='ergo') h += '<div style="font-size:8px;color:var(--adim)">' + best.distanz + 'km · Ø' + best.avgSpeed + 'km/h</div>';
+    else if (best.type==='seil') h += '<div style="font-size:8px;color:var(--adim)">' + best.rpm + ' RPM</div>';
+    h += '</div>';
+    h += '<div style="font-family:var(--fontd);font-size:14px;color:var(--amber)">' + best.sessionXP + ' XP</div>';
+    h += '</div>';
+  }
+
+  // ── Alle Trainings ──
+  if (weekTr.length) {
+    h += '<div class="sec-title">TRAININGS (' + weekTr.length + ')</div>';
+    const sorted = weekTr.slice().sort((a,b) => (parseDE(b.date)||0) - (parseDE(a.date)||0));
+    sorted.forEach(function(t) {
+      let info = '';
+      if (t.type==='egym') info = (t.score||0).toLocaleString('de-DE') + ' Score · ' + (t.modeId||'');
+      else if (t.type==='bike'||t.type==='ergo') info = t.distanz + 'km · Ø' + t.avgSpeed + 'km/h';
+      else if (t.type==='seil') info = t.rpm + ' RPM · ' + t.runden + ' Runden';
+      h += '<div class="card" style="display:flex;align-items:center;gap:10px;margin-bottom:4px">';
+      h += '<div style="font-size:18px;width:24px">' + (TR_ICONS[t.type]||'?') + '</div>';
+      h += '<div style="flex:1"><div style="font-size:10px;color:var(--tb)">' + (TR_NAMES[t.type]||t.type) + ' · ' + t.date + '</div>';
+      h += '<div style="font-size:8px;color:var(--adim)">' + info + '</div></div>';
+      h += '<div style="font-family:var(--fontd);font-size:10px;color:var(--amber)">' + (t.sessionXP||0) + ' XP</div>';
+      h += '</div>';
+    });
+  } else {
+    h += '<div class="sec-title">TRAININGS</div>';
+    h += '<div style="font-size:9px;color:var(--adim);margin-bottom:8px">// Noch keine Trainings diese Woche</div>';
+  }
+
+  // ── Check-in Vergleich ──
+  const ciWithBody = weekCI.filter(c => c.weight && parseFloat(c.weight) > 0);
+  if (ciWithBody.length >= 2) {
+    const first = ciWithBody[0], last = ciWithBody[ciWithBody.length-1];
+    h += '<div class="sec-title">KÖRPER WOCHENVERGLEICH</div>';
+    h += '<div class="card">';
+    [['Gewicht','weight','kg',true],['Viszeralfett','visceral','',true],['Muskelmasse','muscle','kg',false],['KFA','fat','%',true]].forEach(function(f) {
+      const v1 = parseFloat(first[f[1]]||0), v2 = parseFloat(last[f[1]]||0);
+      if (!v1||!v2) return;
+      const d = Math.round((v2-v1)*10)/10;
+      if (d===0) return;
+      const good = f[3] ? d<0 : d>0;
+      const col = good ? 'var(--green)' : 'var(--red)';
+      h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">';
+      h += '<div style="font-size:10px;color:var(--text)">' + f[0] + '</div>';
+      h += '<div style="font-size:10px;color:var(--tb)">' + v2 + f[2] + '</div>';
+      h += '<div style="font-size:10px;color:' + col + '">' + (d>0?'+':'') + d + f[2] + '</div>';
+      h += '</div>';
+    });
+    h += '<div style="font-size:8px;color:var(--adim);margin-top:4px">' + first.date + ' → ' + last.date + '</div>';
+    h += '</div>';
+  }
+
+  // ── Schritte ──
+  const stepsCI = weekCI.filter(c => c.schritte && parseInt(c.schritte)>0);
+  if (stepsCI.length) {
+    const totalSteps = stepsCI.reduce((s,c) => s+parseInt(c.schritte,10), 0);
+    const bestDay = stepsCI.reduce((a,b) => parseInt(a.schritte)>parseInt(b.schritte)?a:b);
+    const avgSteps = Math.round(totalSteps / stepsCI.length);
+    h += '<div class="sec-title">👟 SCHRITTE</div>';
+    h += '<div class="card"><div style="display:flex;justify-content:space-between;margin-bottom:4px">';
+    h += '<div style="font-size:9px;color:var(--adim)">GESAMT</div><div style="font-size:11px;color:var(--tb)">' + totalSteps.toLocaleString('de-DE') + '</div></div>';
+    h += '<div style="display:flex;justify-content:space-between;margin-bottom:4px">';
+    h += '<div style="font-size:9px;color:var(--adim)">Ø/TAG</div><div style="font-size:11px;color:var(--tb)">' + avgSteps.toLocaleString('de-DE') + '</div></div>';
+    h += '<div style="display:flex;justify-content:space-between">';
+    h += '<div style="font-size:9px;color:var(--adim)">BESTER TAG</div><div style="font-size:11px;color:var(--amber)">' + parseInt(bestDay.schritte,10).toLocaleString('de-DE') + ' (' + bestDay.date + ')</div></div>';
+    h += '</div>';
+  }
+
+  // ── Supplement-Compliance ──
+  const suppDays = [];
+  for (let i=0; i<7; i++) {
+    const d = new Date(range.start); d.setDate(d.getDate()+i);
+    const key = d.toLocaleDateString('de-DE');
+    const daySupps = state.supplements[key] || {};
+    const allTaken = KERN_SUPPS.every(s => !!daySupps[s.id]);
+    suppDays.push({key, allTaken, future: d > new Date()});
+  }
+  const doneDays = suppDays.filter(d => !d.future && d.allTaken).length;
+  const pastDays = suppDays.filter(d => !d.future).length;
+  h += '<div class="sec-title">💊 SUPPLEMENT-COMPLIANCE</div>';
+  h += '<div class="card">';
+  h += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
+  h += '<div style="font-family:var(--fontd);font-size:24px;color:var(--amber)">' + doneDays + '/' + pastDays + '</div>';
+  h += '<div style="font-size:9px;color:var(--adim)">Tage vollständig</div></div>';
+  h += '<div style="display:flex;gap:4px">';
+  suppDays.forEach(function(d) {
+    const dayNum = d.key.split('.')[0];
+    const col = d.future ? 'var(--adim)' : d.allTaken ? 'var(--amber)' : 'var(--red)';
+    const bg = d.future ? 'transparent' : d.allTaken ? 'var(--afaint)' : 'transparent';
+    h += '<div style="flex:1;text-align:center;border:1px solid ' + col + ';background:' + bg + ';padding:4px 2px;border-radius:var(--radius)">';
+    h += '<div style="font-size:7px;color:var(--adim)">' + dayNum + '</div>';
+    h += '<div style="font-size:10px;color:' + col + '">' + (d.future?'·':d.allTaken?'✓':'✗') + '</div>';
+    h += '</div>';
+  });
+  h += '</div></div>';
+
+  h += '<div class="page-footer">V6.0.0 · ' + new Date(document.lastModified).toLocaleDateString('de-DE') + ' ' + new Date(document.lastModified).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}) + '</div>';
+  h += '</div></div>';
+  root.innerHTML = h;
+}
+
+render();
+</script>
+</body>
+</html>

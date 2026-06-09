@@ -1,7 +1,7 @@
-// WASTELAND PANZER v5.6 — CORE
+// WASTELAND PANZER v6.0.0 — CORE
 // ============================================================
 
-const VERSION = '5.6';
+const VERSION = (typeof WP_VERSION !== 'undefined') ? WP_VERSION : '5.6';
 const VETERAN_YEAR = 1985;
 const VET = (new Date().getFullYear() - VETERAN_YEAR) / 100 + 1;
 const KSM_ON = 56, KSM_OFF = 14;
@@ -1009,6 +1009,7 @@ const NAV_ITEMS = [
   {href:'supplements.html', icon:'⚗️', label:'SUPPLEMENTS'},
   {href:'balance.html',     icon:'⚖️', label:'BALANCE'},
   {href:'quest.html',       icon:'⚔️', label:'QUESTS'},
+  {href:'weekly.html',      icon:'📅', label:'WOCHENRÜCKBLICK'},
   {href:'hall.html',        icon:'🏆', label:'HALL OF FAME'},
   {href:'editor.html',      icon:'🎨', label:'THEME EDITOR'},
   {href:'savegame.html',    icon:'✏️', label:'SAVE EDITOR'},
@@ -1077,6 +1078,20 @@ var wpTracks = [
 ];
 var wpCurrent = -1;
 var wpAudio = null;
+var wpRadioKey = 'wp_radio';
+var wpRadioSaveTimer = null;
+
+function wpSetIcon(i, icon) {
+  var el = document.getElementById('wp_icon_'+i);
+  if (el) el.textContent = icon;
+}
+function wpRadioSave() {
+  if (!wpAudio || wpCurrent < 0) return;
+  try { localStorage.setItem(wpRadioKey, JSON.stringify({idx:wpCurrent, t:wpAudio.currentTime})); } catch(e){}
+}
+function wpRadioClear() {
+  try { localStorage.removeItem(wpRadioKey); } catch(e){}
+}
 
 function wpInit() {
   if (wpAudio) return;
@@ -1084,26 +1099,48 @@ function wpInit() {
   wpAudio.id = 'wp_audio';
   wpAudio.style.display = 'none';
   document.body.appendChild(wpAudio);
+
+  // Periodisch Position speichern
+  wpAudio.addEventListener('timeupdate', function() {
+    if (wpCurrent < 0 || wpAudio.paused) return;
+    clearTimeout(wpRadioSaveTimer);
+    wpRadioSaveTimer = setTimeout(wpRadioSave, 3000);
+  });
+
+  // Zustand aus vorheriger Seite wiederherstellen
+  try {
+    var saved = JSON.parse(localStorage.getItem(wpRadioKey) || 'null');
+    if (saved && saved.idx >= 0 && saved.idx < wpTracks.length) {
+      var idx = saved.idx;
+      wpCurrent = idx;
+      wpAudio.src = wpTracks[idx];
+      wpAudio.currentTime = saved.t || 0;
+      wpAudio.play().then(function() {
+        wpSetIcon(idx, '⏸');
+      }).catch(function(){
+        wpCurrent = -1; wpRadioClear();
+      });
+      wpAudio.onended = function() { wpSetIcon(idx, '▶'); wpCurrent = -1; wpRadioClear(); };
+    }
+  } catch(e){}
 }
 
 function wpRadioPlay(idx) {
   wpInit();
-  function setIcon(i, icon) {
-    var el = document.getElementById('wp_icon_'+i);
-    if (el) el.textContent = icon;
-  }
   if (wpCurrent === idx && !wpAudio.paused) {
     wpAudio.pause();
-    setIcon(idx, '▶');
+    wpSetIcon(idx, '▶');
     wpCurrent = -1;
+    wpRadioClear();
     return;
   }
-  if (wpCurrent >= 0) setIcon(wpCurrent, '▶');
+  if (wpCurrent >= 0) wpSetIcon(wpCurrent, '▶');
   wpAudio.src = wpTracks[idx];
   wpAudio.play().catch(function(){});
-  setIcon(idx, '⏸');
+  wpSetIcon(idx, '⏸');
   wpCurrent = idx;
-  wpAudio.onended = function() { setIcon(idx, '▶'); wpCurrent = -1; };
+  wpRadioSave();
+  wpAudio.onended = function() { wpSetIcon(idx, '▶'); wpCurrent = -1; wpRadioClear(); };
 }
 
 // ---- HEADER RENDERER ----

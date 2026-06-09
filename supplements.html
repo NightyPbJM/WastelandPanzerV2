@@ -129,7 +129,40 @@ function render() {
 
   h += '</div>';
   h += '<button class="btn ghost sm" onclick="resetDayProtocol()">Tagesprotokoll zurücksetzen</button>';
-  h += '<div class="page-footer">V5.6 · ' + new Date(document.lastModified).toLocaleDateString('de-DE') + ' ' + new Date(document.lastModified).toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'}) + '</div>';
+
+  // STREAK KALENDER — letzte 14 Tage
+  h += '<div class="sec-title">STREAK KALENDER — 14 TAGE</div>';
+  var calDays = [];
+  for (var ci = 13; ci >= 0; ci--) {
+    var cd = new Date(); cd.setDate(cd.getDate() - ci);
+    calDays.push(cd.toLocaleDateString('de-DE'));
+  }
+  // Header-Zeile: Tageszahlen
+  h += '<div style="display:flex;align-items:center;gap:2px;margin-bottom:4px;padding:0 2px;">';
+  h += '<div style="width:28px;flex-shrink:0;"></div>';
+  calDays.forEach(function(d, i) {
+    var dayNum = d.split('.')[0];
+    var isToday = i === 13;
+    h += '<div style="flex:1;text-align:center;font-size:7px;color:' + (isToday?'var(--amber)':'var(--adim)') + ';letter-spacing:0">' + dayNum + '</div>';
+  });
+  h += '</div>';
+  // Eine Reihe pro Kern-Supp
+  KERN_SUPPS.forEach(function(sup) {
+    h += '<div style="display:flex;align-items:center;gap:2px;margin-bottom:3px;padding:0 2px;">';
+    h += '<div style="width:28px;flex-shrink:0;text-align:center;font-size:14px;">' + sup.icon + '</div>';
+    calDays.forEach(function(d, i) {
+      var taken = !!(state.supplements[d] && state.supplements[d][sup.id]);
+      var isToday = i === 13;
+      h += '<div style="flex:1;height:16px;border-radius:2px;background:' +
+        (taken ? 'var(--purple)' : 'var(--afaint)') +
+        ';border:1px solid ' + (isToday ? 'var(--adim)' : 'transparent') + ';' +
+        (taken ? 'box-shadow:0 0 4px rgba(170,68,255,0.4);' : '') +
+        '"></div>';
+    });
+    h += '</div>';
+  });
+
+  h += '<div class="page-footer">V6.0.0 · ' + new Date(document.lastModified).toLocaleDateString('de-DE') + ' ' + new Date(document.lastModified).toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'}) + '</div>';
   h += '</div></div>';
   root.innerHTML = h;
 }
