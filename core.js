@@ -1118,7 +1118,14 @@ function wpInit() {
       wpAudio.play().then(function() {
         wpSetIcon(idx, '⏸');
       }).catch(function(){
-        wpCurrent = -1; wpRadioClear();
+        // Autoplay blockiert — Resume bei erster User-Geste nachholen, State behalten
+        wpSetIcon(idx, '▶');
+        var resume = function() {
+          if (wpCurrent !== idx) return; // User hat inzwischen anderen Track gewählt
+          wpAudio.play().then(function(){ wpSetIcon(idx, '⏸'); })
+            .catch(function(){ wpCurrent = -1; wpRadioClear(); });
+        };
+        document.addEventListener('pointerdown', resume, {once:true});
       });
       wpAudio.onended = function() { wpSetIcon(idx, '▶'); wpCurrent = -1; wpRadioClear(); };
     }
@@ -1413,6 +1420,13 @@ function applyThemes() {
   document.head.appendChild(s);
 }
 
+// Zentraler Footer — Version kommt aus version.js (WP_VERSION)
+function renderFooter() {
+  const v = (typeof WP_VERSION !== 'undefined') ? WP_VERSION : VERSION;
+  const d = new Date(document.lastModified);
+  return '<div class="page-footer">V' + v + ' · ' + d.toLocaleDateString('de-DE') + ' ' + d.toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'}) + '</div>';
+}
+
 document.querySelector('style').textContent = SHARED_CSS;
 if (typeof WP_THEMES !== 'undefined') {
   loadCustomThemes();
@@ -1424,3 +1438,4 @@ if (typeof WP_THEMES !== 'undefined') {
   }
   document.documentElement.setAttribute('data-theme', cur);
 }
+wpInit(); // Radio-Resume: gespeicherten Zustand der vorherigen Seite fortsetzen

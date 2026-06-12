@@ -76,7 +76,7 @@ function render() {
     e => e.rpm + ' RPM',
     e => formatMinSek(e.dauer) + 'min');
 
-  h += '<div class="page-footer">V6.0.0 · ' + new Date(document.lastModified).toLocaleDateString('de-DE') + ' ' + new Date(document.lastModified).toLocaleTimeString('de-DE', {hour:'2-digit',minute:'2-digit'}) + '</div>';
+  h += renderFooter();
   h += '</div></div>';
   root.innerHTML = h;
 }

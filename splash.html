@@ -11,10 +11,18 @@
 <script src="version.js"></script>
 <script src="themes.js"></script>
 <script>
+// Doppel-Splash-Loop verhindern: Flag setzen BEVOR index.html lädt
+try { sessionStorage.setItem('splashShown', '1'); } catch(e) {}
 (function(){
   try {
     var id = localStorage.getItem('wp_theme') || 'amber';
-    var theme = typeof WP_THEMES !== 'undefined' ? WP_THEMES.find(function(t){return t.id===id;}) : null;
+    // Custom Themes aus dem Theme-Editor mit einbeziehen
+    var all = (typeof WP_THEMES !== 'undefined') ? WP_THEMES.slice() : [];
+    try {
+      var customs = JSON.parse(localStorage.getItem('wp_custom_themes') || '[]');
+      if (Array.isArray(customs)) customs.forEach(function(c){ if (c && c.id && c.vars) all.push(c); });
+    } catch(e) {}
+    var theme = all.find(function(t){return t.id===id;});
     if (theme && theme.vars) {
       var root = document.documentElement;
       ['--amber','--adim','--afaint','--bg0','--glow-hi','--glow-lo','--text','--tb'].forEach(function(k){
@@ -92,7 +100,7 @@
 </div>
 
 <script>
-const VERSION = (typeof WP_VERSION !== 'undefined') ? WP_VERSION : '5.6';
+const VERSION = (typeof WP_VERSION !== 'undefined') ? WP_VERSION : '6.0.1';
 
 const stats = ['STRENGTH','PERCEPTION','ENDURANCE','CHARISMA','INTELLIGENCE','AGILITY','LAUFEN'];
 

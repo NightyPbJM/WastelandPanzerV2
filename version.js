@@ -1,1 +1,1 @@
-const WP_VERSION = '6.0.0';
+const WP_VERSION = '6.0.1';

@@ -74,6 +74,18 @@ function editTraining(idx) {
     fields += sgField('sg_dauer','DAUER (min:sek)', fmtDauer(t.dauer), 'text');
     fields += sgField('sg_rpm','RPM', t.rpm, 'number', '1');
     fields += sgField('sg_runden','RUNDEN', t.runden, 'number', '1');
+  } else if (t.type==='egym') {
+    fields += sgField('sg_score','SCORE', t.score, 'number', '1');
+    fields += '<div style="margin-bottom:10px"><div style="font-size:8px;color:var(--adim);letter-spacing:1px;margin-bottom:3px">MODUS</div>'
+      + '<select id="sg_mode" style="width:100%;background:var(--bg0);color:var(--tb);border:1px solid var(--adim);font-family:var(--font);font-size:13px;padding:8px;border-radius:var(--radius)">';
+    EGYM_MODES.forEach(function(m){
+      fields += '<option value="' + m.id + '"' + (m.id===t.modeId?' selected':'') + '>' + m.name + ' ×' + m.factor + '</option>';
+    });
+    fields += '</select></div>';
+    const hasSets = t.exData && Object.keys(t.exData).some(function(k){ return (t.exData[k]||[]).length; });
+    fields += '<div style="font-size:8px;color:var(--adim);font-style:italic;margin-bottom:6px">'
+      + (hasSets ? '// Sets vorhanden — XP wird aus Sets + Modus voll neu berechnet'
+                 : '// Alt-Eintrag ohne Sets — XP wird über Modus-Faktor skaliert') + '</div>';
   }
   sgModal('✎ ' + t.type.toUpperCase() + ' · ' + t.date, fields,
     'saveTrainingEdit(' + idx + ')', 'XP wird automatisch neu berechnet.');
@@ -100,6 +112,32 @@ function saveTrainingEdit(idx) {
     t.rpm = parseFloat(gv('sg_rpm'))||0;
     t.runden = parseFloat(gv('sg_runden'))||0;
     xp = calcSeilXP(t.dauer, t.rpm);
+  } else if (t.type==='egym') {
+    const newScore = parseFloat(gv('sg_score'))||t.score;
+    const modeEl = document.getElementById('sg_mode');
+    const newMode = EGYM_MODES.find(function(m){return m.id===(modeEl?modeEl.value:t.modeId);}) || EGYM_MODES[3];
+    const hasSets = t.exData && Object.keys(t.exData).some(function(k){ return (t.exData[k]||[]).length; });
+    if (hasSets) {
+      // Volle Neuberechnung aus gespeicherten Sets (wie processEgym)
+      const lastCI = (state.checkins&&state.checkins.length) ? state.checkins.findLast(function(c){return c&&c.weight;}) : null;
+      const bw = lastCI ? parseFloat(lastCI.weight) : 107.4;
+      const sets = [];
+      EGYM_EX.forEach(function(ex){
+        ((t.exData||{})[ex.id]||[]).forEach(function(set){
+          if ((parseFloat(set.kg)||0)>0 && (parseFloat(set.wdh)||0)>0) sets.push({kg:set.kg, wdh:set.wdh, stat:ex.stat});
+        });
+      });
+      xp = calcEgymXP(sets, bw, newMode.factor);
+    } else {
+      // Alt-Eintrag ohne Sets: XP proportional zum Modus-Faktor skalieren
+      const ratio = newMode.factor / (t.modeFactor || 1);
+      const scaled = {};
+      Object.keys(t.statXP||{}).forEach(function(k){ scaled[k] = Math.round(t.statXP[k]*ratio*10)/10; });
+      xp = { total: Math.round((t.sessionXP||0)*ratio*10)/10, statXP: scaled };
+    }
+    t.score = Math.round(newScore);
+    t.modeId = newMode.id;
+    t.modeFactor = newMode.factor;
   }
   if (xp) { t.sessionXP = xp.total; t.statXP = xp.statXP; applyXP(xp); }
   recalcStats();
@@ -250,13 +288,10 @@ function renderTraining() {
     h += '<div style="flex:1;min-width:0"><div style="font-size:11px;color:var(--tb)">' + t.type.toUpperCase() + ' · ' + t.date + '</div>'
       + '<div style="font-size:8px;color:var(--adim);margin-top:2px">' + info + '</div></div>';
     h += '<div style="font-family:var(--fontd);font-size:10px;color:var(--amber);white-space:nowrap">' + (t.sessionXP||0) + ' XP</div>';
-    if (t.type !== 'egym') {
-      h += '<button class="btn" style="padding:6px 9px;font-size:10px" onclick="editTraining(' + idx + ')">✎</button>';
-    }
+    h += '<button class="btn" style="padding:6px 9px;font-size:10px" onclick="editTraining(' + idx + ')">✎</button>';
     h += '<button class="btn" style="padding:6px 9px;font-size:10px;border-color:var(--adim);color:var(--adim)" onclick="delTraining(' + idx + ')">🗑</button>';
     h += '</div>';
   });
-  h += '<div style="font-size:8px;color:var(--adim);font-style:italic;margin-top:8px">// EGYM-Editieren folgt — vorerst nur löschen (Sets zu komplex für Beta).</div>';
   return h;
 }
 
@@ -313,7 +348,7 @@ function render() {
   else if (sgTab === 'training') h += renderTraining();
   else if (sgTab === 'checkin') h += renderCheckin();
 
-  h += '<div class="page-footer">V6.0.0 · ' + new Date(document.lastModified).toLocaleDateString('de-DE') + ' ' + new Date(document.lastModified).toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'}) + '</div>';
+  h += renderFooter();
   h += '</div></div>';
   root.innerHTML = h;
 }
