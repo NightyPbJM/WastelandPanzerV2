@@ -692,8 +692,8 @@ function importData(file, onDone) {
 
 function migrateAndInit() {
   if (!state.mastery) state.mastery = {};
-  if (!state.masteryLevel)
-  if (!state.questStatXP) state.questStatXP = {S:0,P:0,E:0,C:0,I:0,A:0,L:0}; state.masteryLevel = {};
+  if (!state.masteryLevel) state.masteryLevel = {};
+  if (!state.questStatXP) state.questStatXP = {S:0,P:0,E:0,C:0,I:0,A:0,L:0};
   state.trainings.forEach(t => {
     if (t.type==='egym' && !t.exData) {
       const exData = {};

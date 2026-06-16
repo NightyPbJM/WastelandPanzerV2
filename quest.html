@@ -14,6 +14,7 @@
 </head>
 <body>
 <div id="root"></div>
+<script src="version.js"></script>
 <script src="themes.js"></script>
 <script src="core.js"></script>
 <script>
@@ -164,6 +165,8 @@ function claimRaid(id) {
   var wk = getWeekKey();
   if (qs.weekly[wk].claimed[id]) return;
   if (raid.check() < raid.goal) { toast('Noch nicht erfüllt','err'); return; }
+  // Sicherheitsnetz: questStatXP immer initialisieren falls irgendwie fehlt
+  if (!state.questStatXP) state.questStatXP = {S:0,P:0,E:0,C:0,I:0,A:0,L:0};
   qs.weekly[wk].claimed[id] = true;
   state.globalXP = (state.globalXP||0) + raid.rewardXP;
   state.questStatXP[raid.rewardStat] = (state.questStatXP[raid.rewardStat]||0) + raid.rewardXP;
