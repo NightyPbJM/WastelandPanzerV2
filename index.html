@@ -360,6 +360,8 @@ function saveCheckin() {
   });
   if (!valid) { toast('Werte prüfen', 'err'); return; }
 
+  f.date = ((document.getElementById('ci_date')||{}).value||'').trim();
+  if (!/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(f.date)) f.date = today();
   processCheckin(f);
   closeModal();
   toast('✓ Check-in gespeichert');

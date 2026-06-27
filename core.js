@@ -499,7 +499,7 @@ function processCheckin(f) {
     state.globalXP = (state.globalXP||0)+sxp;
     f.sleepXP = sxp;
   }
-  state.checkins.push({date:today(), ...f});
+  state.checkins.push({date:f.date||today(), ...f});
   const logParts = [f.weight + 'kg'];
     if (f.visceral !== undefined && f.visceral !== '') logParts.push('VF' + f.visceral);
     if (f.whr) logParts.push('WHR:' + f.whr);
@@ -509,7 +509,7 @@ function processCheckin(f) {
 }
 
 // ---- EGYM ----
-function processEgym(exData, modeId) {
+function processEgym(exData, modeId, date) {
   const modeObj = EGYM_MODES.find(m=>m.id===modeId)||EGYM_MODES[3];
   const lastCI = (state.checkins&&state.checkins.length) ? state.checkins.findLast(c=>c&&c.weight) : null;
   const bw = lastCI ? parseFloat(lastCI.weight) : 107.4;
@@ -524,7 +524,7 @@ function processEgym(exData, modeId) {
   const xpResult = calcEgymXP(sets, bw, modeObj.factor);
   // Store statXP breakdown for exact XP reversal on delete
   const statXPSnapshot = {...xpResult.statXP};
-  state.trainings.push({type:'egym', date:today(), score, modeId:modeObj.id, modeFactor:modeObj.factor, sessionXP:xpResult.total, statXP:statXPSnapshot, exData});
+  state.trainings.push({type:'egym', date:date||today(), score, modeId:modeObj.id, modeFactor:modeObj.factor, sessionXP:xpResult.total, statXP:statXPSnapshot, exData});
   applyXP(xpResult);
   addEv('training', `EGYM [${modeObj.name}]: Score ${score} · +${xpResult.total} XP`);
   recalcStats();
@@ -537,7 +537,8 @@ function processSeil(f) {
   const dauer = parseMinSek(f.dauer);
   const rpm = dauer > 0 ? Math.round(jumps/dauer) : 0;
   const xpResult = calcSeilXP(dauer, rpm);
-  const todayIdx = state.trainings.findIndex(t=>t.type==='seil'&&t.date===today());
+  const seilDate = f.date || today();
+  const todayIdx = (seilDate===today()) ? state.trainings.findIndex(t=>t.type==='seil'&&t.date===seilDate) : -1;
   if (todayIdx >= 0) {
     const ex = state.trainings[todayIdx];
     const newDauer = parseFloat(ex.dauer||0)+dauer;
@@ -549,7 +550,7 @@ function processSeil(f) {
     state.trainings[todayIdx] = {...ex, dauer:newDauer, rpm:Math.round(newRPM), runden:newRunden, sessionXP:combined.total, statXP:combined.statXP};
     addEv('training', `SEIL +: ${formatMinSek(newDauer)}min · ${Math.round(newRPM)}RPM`);
   } else {
-    state.trainings.push({type:'seil', date:today(), dauer, rpm, runden:parseInt(f.runden||0,10), sessionXP:xpResult.total, statXP:xpResult.statXP});
+    state.trainings.push({type:'seil', date:seilDate, dauer, rpm, runden:parseInt(f.runden||0,10), sessionXP:xpResult.total, statXP:xpResult.statXP});
     applyXP(xpResult);
     addEv('training', `SEIL: ${formatMinSek(dauer)}min · ${rpm}RPM · +${xpResult.total} XP`);
   }
@@ -563,7 +564,7 @@ function processBike(f) {
   const avgSpeed = dauer > 0 ? Math.round((distanz/(dauer/60))*10)/10 : 0;
   const maxSpeed = parseFloat(f.maxSpeed||0);
   const xpResult = calcBikeXP(distanz, avgSpeed, dauer, maxSpeed);
-  state.trainings.push({type:'bike', date:today(), distanz, dauer, avgSpeed, maxSpeed, sessionXP:xpResult.total, statXP:xpResult.statXP});
+  state.trainings.push({type:'bike', date:f.date||today(), distanz, dauer, avgSpeed, maxSpeed, sessionXP:xpResult.total, statXP:xpResult.statXP});
   applyXP(xpResult);
   addEv('training', `RAD: ${distanz}km · ${avgSpeed}km/h Ø · +${xpResult.total} XP`);
   recalcStats();
@@ -575,7 +576,7 @@ function processErgo(f) {
   const distanz = parseFloat(f.distanz||0);
   const avgSpeed = dauer > 0 ? Math.round((distanz/(dauer/60))*10)/10 : 0;
   const xpResult = calcErgoXP(distanz, avgSpeed, dauer);
-  state.trainings.push({type:'ergo', date:today(), distanz, dauer, avgSpeed, sessionXP:xpResult.total, statXP:xpResult.statXP});
+  state.trainings.push({type:'ergo', date:f.date||today(), distanz, dauer, avgSpeed, sessionXP:xpResult.total, statXP:xpResult.statXP});
   applyXP(xpResult);
   addEv('training', `ERGO: ${formatMinSek(dauer)}min · ${distanz?distanz+'km':'--'} · +${xpResult.total} XP`);
   recalcStats();

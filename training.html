@@ -22,6 +22,30 @@
 var modal = null;
 var exSetsState = {};
 
+function dateField(inputId) {
+  return '<div class="f-wrap"><div class="f-lbl">📅 DATUM</div>'
+    + '<input class="f-in" id="' + inputId + '" value="' + today() + '" placeholder="TT.MM.JJJJ" maxlength="10" inputmode="numeric" style="font-family:var(--fontd);letter-spacing:2px"></div>';
+}
+function getDate(inputId) {
+  var v = ((document.getElementById(inputId)||{}).value||'').trim();
+  return /^\d{1,2}\.\d{1,2}\.\d{4}$/.test(v) ? v : today();
+}
+function openTraining(type) {
+  // Prefill exSetsState from last EGYM wenn leer
+  if (type==='egym') {
+    var lEg = state.trainings.filter(function(t){return t.type==='egym';}).slice(-1)[0];
+    if (lEg && lEg.exData) {
+      var isEmpty = !Object.keys(exSetsState).some(function(k){return exSetsState[k]&&exSetsState[k].length;});
+      if (isEmpty) {
+        EGYM_EX.forEach(function(ex){
+          exSetsState[ex.id] = (lEg.exData[ex.id]||[]).map(function(s){return {kg:s.kg,wdh:s.wdh};});
+        });
+      }
+    }
+  }
+  modal = type; render();
+}
+
 function render() {
   var root = document.getElementById('root');
   var gLvl = getLvlInfo(state.globalXP);
@@ -120,6 +144,7 @@ function renderModal() {
 
   if (modal==='egym') {
     h += '<div class="modal-title">EGYM SESSION</div><div class="modal-sub">KG + WDH PRO SATZ · MODUS = XP-FAKTOR</div>';
+    h += dateField('egym_date');
     h += '<div class="f-wrap"><div class="f-lbl">TRAININGS-MODUS</div><select class="f-in" id="egym_mode" onchange="updateEgymPreview()">';
     EGYM_MODES.forEach(function(m){ h += '<option value="' + m.id + '"' + (m.id==='isokinetisch'?' selected':'') + '>' + m.name + ' (x' + m.factor + ')</option>'; });
     h += '</select></div>';
@@ -140,31 +165,45 @@ function renderModal() {
 
   if (modal==='seil') {
     h += '<div class="modal-title">SEIL SESSION</div><div class="modal-sub">RPM WIRD AUTOMATISCH BERECHNET</div>';
+    h += dateField('seil_date');
+    var lSeilPre = state.trainings.filter(function(t){return t.type==='seil';}).slice(-1)[0];
     h += '<div class="f-g2">';
-    h += '<div class="f-wrap"><div class="f-lbl">Dauer (min:sek)</div><input class="f-in" id="seil_dauer" placeholder="15:00" inputmode="text" oninput="updateRpmPreview()"></div>';
-    h += '<div class="f-wrap"><div class="f-lbl">Gesamtsprünge</div><input class="f-in" id="seil_jumps" placeholder="800" inputmode="decimal" oninput="updateRpmPreview()"></div>';
+    var seilDurVal = lSeilPre ? formatMinSek(lSeilPre.dauer||0) : '';
+    var seilJmpEst = lSeilPre && lSeilPre.rpm && lSeilPre.dauer ? Math.round(lSeilPre.rpm * lSeilPre.dauer) : '';
+    h += '<div class="f-wrap"><div class="f-lbl">Dauer (min:sek)</div><input class="f-in" id="seil_dauer" placeholder="15:00" value="' + seilDurVal + '" inputmode="text" oninput="updateRpmPreview()"></div>';
+    h += '<div class="f-wrap"><div class="f-lbl">Gesamtsprünge</div><input class="f-in" id="seil_jumps" placeholder="800" value="' + seilJmpEst + '" inputmode="decimal" oninput="updateRpmPreview()"></div>';
     h += '</div>';
-    h += '<div class="f-wrap"><div class="f-lbl">Runden</div><input class="f-in" id="seil_runden" placeholder="8" inputmode="decimal"></div>';
+    var seilRudVal = lSeilPre ? (lSeilPre.runden||'') : '';
+    h += '<div class="f-wrap"><div class="f-lbl">Runden</div><input class="f-in" id="seil_runden" placeholder="8" value="' + seilRudVal + '" inputmode="decimal"></div>';
     h += '<div style="background:var(--g0);border:1px solid var(--gdim);padding:8px;text-align:center;margin:6px 0"><div style="font-family:var(--fontd);font-size:20px;color:var(--blue)" id="rpm_preview">-- RPM</div><div style="font-size:7px;color:var(--gdim)">Gesamtsprünge / Gesamtminuten</div></div>';
     h += '<div class="mactions"><button class="btn blue" onclick="saveSeil()">SPEICHERN</button><button class="btn red" onclick="closeModal()">ABBRUCH</button></div>';
   }
 
   if (modal==='bike') {
     h += '<div class="modal-title">RAD SESSION</div><div class="modal-sub">AVG SPEED WIRD AUTOMATISCH BERECHNET</div>';
+    h += dateField('bike_date');
+    var lBikePre = state.trainings.filter(function(t){return t.type==='bike';}).slice(-1)[0];
+    var bikeDistVal = lBikePre ? String(lBikePre.distanz||'') : '';
+    var bikeDurVal = lBikePre ? formatMinSek(lBikePre.dauer||0) : '';
+    var bikeMaxVal = lBikePre ? String(lBikePre.maxSpeed||'') : '';
     h += '<div class="f-g2">';
-    h += '<div class="f-wrap"><div class="f-lbl">Distanz (km)</div><input class="f-in" id="bike_distanz" placeholder="1.58" inputmode="decimal" oninput="updateBikePreview()"></div>';
-    h += '<div class="f-wrap"><div class="f-lbl">Dauer (min:sek)</div><input class="f-in" id="bike_dauer" placeholder="10:00" inputmode="text" oninput="updateBikePreview()"></div>';
+    h += '<div class="f-wrap"><div class="f-lbl">Distanz (km)</div><input class="f-in" id="bike_distanz" placeholder="1.58" value="' + bikeDistVal + '" inputmode="decimal" oninput="updateBikePreview()"></div>';
+    h += '<div class="f-wrap"><div class="f-lbl">Dauer (min:sek)</div><input class="f-in" id="bike_dauer" placeholder="10:00" value="' + bikeDurVal + '" inputmode="text" oninput="updateBikePreview()"></div>';
     h += '</div>';
-    h += '<div class="f-wrap"><div class="f-lbl">Max Peak Speed (km/h) — optional</div><input class="f-in" id="bike_maxspeed" placeholder="21.5" inputmode="decimal"></div>';
+    h += '<div class="f-wrap"><div class="f-lbl">Max Peak Speed (km/h) — optional</div><input class="f-in" id="bike_maxspeed" placeholder="21.5" value="' + bikeMaxVal + '" inputmode="decimal"></div>';
     h += '<div style="background:var(--g0);border:1px solid var(--gdim);padding:8px;text-align:center;margin:6px 0"><div style="font-family:var(--fontd);font-size:20px;color:var(--cyan)" id="bike_speed_preview">-- km/h Ø</div><div style="font-size:7px;color:var(--gdim)">Distanz / (Dauer in Stunden)</div></div>';
     h += '<div class="mactions"><button class="btn cyan" onclick="saveBike()">SPEICHERN</button><button class="btn red" onclick="closeModal()">ABBRUCH</button></div>';
   }
 
   if (modal==='ergo') {
     h += '<div class="modal-title">ERGOMETER SESSION</div><div class="modal-sub">AVG SPEED WIRD AUTOMATISCH BERECHNET</div>';
+    h += dateField('ergo_date');
+    var lErgoPre = state.trainings.filter(function(t){return t.type==='ergo';}).slice(-1)[0];
+    var ergoDistVal = lErgoPre ? String(lErgoPre.distanz||'') : '';
+    var ergoDurVal = lErgoPre ? formatMinSek(lErgoPre.dauer||0) : '';
     h += '<div class="f-g2">';
-    h += '<div class="f-wrap"><div class="f-lbl">Distanz (km)</div><input class="f-in" id="ergo_distanz" placeholder="5.0" inputmode="decimal" oninput="updateErgoPreview()"></div>';
-    h += '<div class="f-wrap"><div class="f-lbl">Dauer (min:sek)</div><input class="f-in" id="ergo_dauer" placeholder="15:00" inputmode="text" oninput="updateErgoPreview()"></div>';
+    h += '<div class="f-wrap"><div class="f-lbl">Distanz (km)</div><input class="f-in" id="ergo_distanz" placeholder="5.0" value="' + ergoDistVal + '" inputmode="decimal" oninput="updateErgoPreview()"></div>';
+    h += '<div class="f-wrap"><div class="f-lbl">Dauer (min:sek)</div><input class="f-in" id="ergo_dauer" placeholder="15:00" value="' + ergoDurVal + '" inputmode="text" oninput="updateErgoPreview()"></div>';
     h += '</div>';
     h += '<div style="background:var(--g0);border:1px solid var(--gdim);padding:8px;text-align:center;margin:6px 0"><div style="font-family:var(--fontd);font-size:20px;color:#66cc66" id="ergo_speed_preview">-- km/h Ø</div><div style="font-size:7px;color:var(--gdim)">Distanz / (Dauer in Stunden)</div></div>';
     h += '<div class="mactions"><button class="btn" style="border-color:#336633;color:#66cc66" onclick="saveErgo()">SPEICHERN</button><button class="btn red" onclick="closeModal()">ABBRUCH</button></div>';
@@ -222,7 +261,8 @@ function saveEgym() {
   var modeId=(document.getElementById('egym_mode')||{}).value||'isokinetisch';
   var exData={};
   EGYM_EX.forEach(function(ex){ exData[ex.id]=(exSetsState[ex.id]||[]).filter(function(s){return parseFloat(s.kg)>0&&parseFloat(s.wdh)>0;}); });
-  processEgym(exData, modeId);
+  var egymDate = getDate('egym_date');
+  processEgym(exData, modeId, egymDate);
   closeModal(); toast('EGYM gespeichert'); render();
 }
 
@@ -231,7 +271,7 @@ function saveSeil() {
   var runden=(document.getElementById('seil_runden')||{}).value||'';
   var jumps=(document.getElementById('seil_jumps')||{}).value||'';
   if (!dauer||!jumps) { toast('Dauer + Gesamtsprünge erforderlich','err'); return; }
-  processSeil({dauer:dauer, runden:runden, jumps:jumps, seconds:null});
+  processSeil({dauer:dauer, runden:runden, jumps:jumps, seconds:null, date:getDate('seil_date')});
   closeModal(); toast('Seil gespeichert'); render();
 }
 
@@ -242,7 +282,7 @@ function saveBike() {
   if (!distanz||!dauer) { toast('Distanz + Dauer erforderlich','err'); return; }
   var dauerMin = parseMinSek(dauer);
   var avgSpeedCalc = dauerMin > 0 ? Math.round((parseFloat(distanz)/(dauerMin/60))*10)/10 : 0;
-  processBike({distanz:distanz, dauer:dauer, maxSpeed:maxSpeed, avgSpeed:avgSpeedCalc});
+  processBike({distanz:distanz, dauer:dauer, maxSpeed:maxSpeed, avgSpeed:avgSpeedCalc, date:getDate('bike_date')});
   closeModal(); toast('Rad gespeichert'); render();
 }
 
@@ -250,7 +290,7 @@ function saveErgo() {
   var distanz=(document.getElementById('ergo_distanz')||{}).value||'';
   var dauer=(document.getElementById('ergo_dauer')||{}).value||'';
   if (!dauer) { toast('Dauer erforderlich','err'); return; }
-  processErgo({distanz:distanz, dauer:dauer});
+  processErgo({distanz:distanz, dauer:dauer, date:getDate('ergo_date')});
   closeModal(); toast('Ergometer gespeichert'); render();
 }
 

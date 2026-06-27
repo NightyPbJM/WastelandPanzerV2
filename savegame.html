@@ -147,6 +147,21 @@ function saveTrainingEdit(idx) {
   toast('✓ ' + t.type.toUpperCase() + ' aktualisiert');
 }
 
+function copyTraining(idx) {
+  const t = state.trainings[idx];
+  if (!t) return;
+  // Edit-Modal mit Werten öffnen (date auf heute)
+  const copy = JSON.parse(JSON.stringify(t));
+  // Temporären Eintrag ans Ende hängen, dann editieren
+  const tmpIdx = state.trainings.length;
+  state.trainings.push(copy);
+  // date auf heute setzen für neuen Eintrag
+  state.trainings[tmpIdx].date = today();
+  // XP noch nicht angewendet — wird beim Speichern gemacht
+  state.trainings[tmpIdx].sessionXP = 0;
+  state.trainings[tmpIdx].statXP = {};
+  editTraining(tmpIdx);
+}
 function delTraining(idx) {
   const t = state.trainings[idx];
   if (!t) return;
@@ -290,6 +305,7 @@ function renderTraining() {
       + '<div style="font-size:8px;color:var(--adim);margin-top:2px">' + info + '</div></div>';
     h += '<div style="font-family:var(--fontd);font-size:10px;color:var(--amber);white-space:nowrap">' + (t.sessionXP||0) + ' XP</div>';
     h += '<button class="btn" style="padding:6px 9px;font-size:10px" onclick="editTraining(' + idx + ')">✎</button>';
+    h += '<button class="btn" style="padding:6px 9px;font-size:10px;border-color:var(--adim);color:var(--adim)" title="Duplizieren" onclick="copyTraining(' + idx + ')">📋</button>';
     h += '<button class="btn" style="padding:6px 9px;font-size:10px;border-color:var(--adim);color:var(--adim)" onclick="delTraining(' + idx + ')">🗑</button>';
     h += '</div>';
   });
